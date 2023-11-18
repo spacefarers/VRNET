@@ -6,7 +6,9 @@ import torch
 import os
 import numpy as np
 from pathlib import Path
+import json
 from model import weights_init_kaiming
+import time
 
 
 class Trainer:
@@ -41,17 +43,17 @@ class Trainer:
         Path(self.experiments_dir).mkdir(parents=True, exist_ok=True)
         torch.save(self.model.state_dict(), self.experiments_dir + f'/{stage}.pth')
         if logs:
-            with open(self.experiments_dir + f'/{stage}_logs.txt', 'w') as f:
-                f.write('\n'.join(logs))
+            with open(self.experiments_dir + f'/{stage}_logs.json', 'w') as f:
+                json.dump(logs, f)
 
     def train(self, pretrain_epochs, finetune1_epochs, finetune2_epochs, interval, crop_times):
         stage = self.jump_to_progress()
-
         if stage is None and pretrain_epochs > 0:
             # Pretrain
             print('=======Pretrain========')
-            pretrain_logs = []
-            for _ in tqdm(range(pretrain_epochs)):
+            time_start = time.time()
+            pretrain_logs = {"loss": []}
+            for epoch in tqdm(range(pretrain_epochs)):
                 loss_mse = 0
                 train_loader = self.dataset.spacial_dataloader(interval, crop_times)
                 for batch_idx, (ls, le, li) in tqdm(enumerate(train_loader)):
@@ -69,15 +71,20 @@ class Trainer:
                     error.backward()
                     loss_mse += error.mean().item()
                     self.optimizer_G.step()
-                pretrain_logs.append(str(loss_mse))
-                tqdm.write('Pretrain loss: %f' % loss_mse)
+                pretrain_logs["loss"].append(loss_mse)
+                tqdm.write(f"P {epoch} loss: {loss_mse}")
+            time_end = time.time()
+            time_cost = time_end - time_start
+            print('P time cost', time_cost, 's')
+            pretrain_logs["time_cost"] = time_cost
             self.save_model('pretrain', pretrain_logs)
             torch.cuda.empty_cache()
         if (stage is None or stage == 'pretrain') and finetune1_epochs > 0:
             # Finetune 1
             print('=======Finetune 1========')
-            finetune1_logs = []
-            for _ in tqdm(range(1, finetune1_epochs + 1)):
+            time_start = time.time()
+            finetune1_logs = {"loss": []}
+            for epoch in tqdm(range(1, finetune1_epochs + 1)):
                 loss_mse = 0
                 train_loader = self.dataset.spacial_temporal_dataloader(interval, crop_times)
                 for batch_idx, (ls, le, hi) in enumerate(train_loader):
@@ -90,16 +97,21 @@ class Trainer:
                     error.backward()
                     loss_mse += error.mean().item()
                     self.optimizer_G.step()
-                finetune1_logs.append(str(loss_mse))
-                print('Finetune 1 loss: %f' % loss_mse)
+                finetune1_logs["loss"].append(loss_mse)
+                tqdm.write(f"FT1 {epoch} loss: {loss_mse}")
+            time_end = time.time()
+            time_cost = time_end - time_start
+            print('FT1 time cost', time_cost, 's')
+            finetune1_logs["time_cost"] = time_cost
             self.save_model('finetune1', finetune1_logs)
             torch.cuda.empty_cache()
 
         if stage != 'finetune2' and finetune2_epochs > 0:
             # Finetune 2
             tqdm.write('=======Finetune 2========')
-            finetune2_logs = []
-            for _ in tqdm(range(1, finetune2_epochs + 1)):
+            time_start = time.time()
+            finetune2_logs = {"generator_loss": [], "discriminator_loss": []}
+            for epoch in tqdm(range(1, finetune2_epochs + 1)):
                 generator_loss = 0
                 discriminator_loss = 0
                 train_loader = self.dataset.spacial_temporal_dataloader(interval, crop_times)
@@ -141,19 +153,23 @@ class Trainer:
 
                     for p in self.discriminator.parameters():
                         p.requires_grad = True
-                finetune2_logs.append(f'{generator_loss} {discriminator_loss}')
-                tqdm.write(f'Generator loss: {generator_loss} discriminator loss: {discriminator_loss}')
+                finetune2_logs["generator_loss"].append(generator_loss)
+                finetune2_logs["discriminator_loss"].append(discriminator_loss)
+                tqdm.write(f'FT2 {epoch} Generator loss: {generator_loss} Discriminator loss: {discriminator_loss}')
+            time_end = time.time()
+            time_cost = time_end - time_start
+            print('FT2 time cost', time_cost, 's')
             self.save_model('finetune2', finetune2_logs)
             torch.cuda.empty_cache()
 
-    def inference(self, interval,load_model=None):
-        if os.listdir(self.inference_dir):
+    def inference(self, interval, load_model=None):
+        Path(self.inference_dir).mkdir(parents=True, exist_ok=True)
+        if len(os.listdir(self.inference_dir)) >= 100:
             print("Inference Already Done")
             return
         if load_model:
             self.load_model(load_model)
         print('=======Inference========')
-        Path(self.inference_dir).mkdir(parents=True, exist_ok=True)
         low, high = self.dataset.low_res, self.dataset.hi_res
         for i in tqdm(range(0, len(low), interval + 1)):
             if i + 1 + interval < len(low):
@@ -174,8 +190,37 @@ class Trainer:
                         data = s[0][j]
                         data = np.asarray(data, dtype='<f')
                         data = data.flatten('F')
-                        # normalize to [-1,1]
-                        data = 2 * (data - np.min(data)) / (np.max(data) - np.min(data)) - 1
                         data.tofile(
                             f'{self.inference_dir}{self.dataset.dataset}-{self.dataset.selected_var}-{i + j + 1}.raw',
                             format='<f')
+
+    def increase_framerate(self, interval, load_model=None):
+        Path(self.inference_dir).mkdir(parents=True, exist_ok=True)
+        if len(os.listdir(self.inference_dir)) >= 100:
+            print("Inference Already Done")
+            return
+        if load_model:
+            self.load_model(load_model)
+        print('=======Inference========')
+        low, high = self.dataset.low_res, self.dataset.hi_res
+        for i in tqdm(range(len(low) - 1)):
+            ls = torch.FloatTensor(
+                low[i].reshape(1, 1, self.dataset.dims[0] // self.dataset.scale,
+                               self.dataset.dims[1] // self.dataset.scale,
+                               self.dataset.dims[2] // self.dataset.scale))
+            le = torch.FloatTensor(
+                low[i + 1].reshape(1, 1, self.dataset.dims[0] // self.dataset.scale,
+                                   self.dataset.dims[1] // self.dataset.scale,
+                                   self.dataset.dims[2] // self.dataset.scale))
+            ls = ls.cuda()
+            le = le.cuda()
+            with torch.no_grad():
+                s = self.model(ls, le)
+                s = s.detach().cpu().numpy()
+                for j in range(0, interval + 2):
+                    data = s[0][j]
+                    data = np.asarray(data, dtype='<f')
+                    data = data.flatten('F')
+                    data.tofile(
+                        f'{self.inference_dir}{self.dataset.dataset}-{self.dataset.selected_var}-{i * 2 + j + 1}.raw',
+                        format='<f')

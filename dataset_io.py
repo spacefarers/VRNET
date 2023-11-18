@@ -7,7 +7,7 @@ from tqdm import tqdm
 import torch
 from torch.utils.data import DataLoader
 
-batch_size = 2
+batch_size = 8
 
 
 class Dataset:
@@ -173,12 +173,15 @@ class Dataset:
     def psnr(self, eval_source):
         if type(eval_source) != str:
             eval_source = eval_source.inference_dir
-        print(eval_source)
         if not os.path.exists(eval_source):
             return float('nan'), []
+        if os.path.exists(eval_source+'PSNR.json'):
+            with open(eval_source+'PSNR.json', 'r') as f:
+                data = json.load(f)
+            return data['mean'], data['array']
         print("=======Evaluating========")
         PSNR_list = []
-        for ind, GT in tqdm(enumerate(self.hi_res)):
+        for ind, GT in enumerate(tqdm(self.hi_res)):
             cmp = np.fromfile(f'{eval_source}{self.dataset}-{self.selected_var}-{ind + 1}.raw', dtype='<f')
             GT = GT.flatten('F')
             GT_range = GT.max() - GT.min()
@@ -187,4 +190,6 @@ class Dataset:
             PSNR_list.append(PSNR)
         print(f"PSNR is {np.mean(PSNR_list)}")
         print(f"array:\n {PSNR_list}")
+        with open(f'{eval_source}PSNR.json', 'w') as f:
+            json.dump({"mean": np.mean(PSNR_list), "array": PSNR_list}, f)
         return np.mean(PSNR_list), PSNR_list

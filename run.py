@@ -8,8 +8,12 @@ dataset = 'half-cylinder'
 root_data_dir = '/afs/crc.nd.edu/user/m/myang9/data/'
 # experiments_dir = '/mnt/d/experiments/'
 experiments_dir = '/afs/crc.nd.edu/user/m/myang9/experiments/'
+
+# root_data_dir = "/Users/spacefarers/data/"
+# experiments_dir = "/Users/spacefarers/experiments/"
+
 selected_var = '640'
-run_id = 1
+run_id = 11
 interval = 2
 crop_times = 4
 scale = 4
