@@ -12,7 +12,7 @@ import time
 
 
 class Trainer:
-    def __init__(self, model, discriminator, dataset: Dataset, run_id, experiments_dir):
+    def __init__(self, dataset: Dataset, run_id, experiments_dir,model, discriminator=None):
         self.model = nn.DataParallel(model)
         self.discriminator = nn.DataParallel(discriminator)
         self.model.cuda()
@@ -25,28 +25,32 @@ class Trainer:
         self.criterion = nn.MSELoss()
         self.run_id = f"{run_id:03d}"
         self.stages = ['pretrain', 'finetune1', 'finetune2']
-        self.experiments_dir = os.path.join(experiments_dir, self.run_id)
-        self.inference_dir = self.experiments_dir + "/inference/"
+        self.experiment_dir = os.path.join(experiments_dir, self.run_id)
+        self.inference_dir = self.experiment_dir + "/inference/"
+        self.predict_data = []
 
     def load_model(self, stage):
-        self.model.load_state_dict(torch.load(self.experiments_dir + f'/{stage}.pth'))
+        self.model.load_state_dict(torch.load(self.experiment_dir + f'/{stage}.pth'))
 
     def jump_to_progress(self):
         for stage in reversed(self.stages):
-            if os.path.exists(self.experiments_dir + f'/{stage}.pth'):
+            if os.path.exists(self.experiment_dir + f'/{stage}.pth'):
                 print('Jump to %s' % stage)
                 self.load_model(stage)
                 return stage
         return None
 
     def save_model(self, stage, logs=None):
-        Path(self.experiments_dir).mkdir(parents=True, exist_ok=True)
-        torch.save(self.model.state_dict(), self.experiments_dir + f'/{stage}.pth')
+        Path(self.experiment_dir).mkdir(parents=True, exist_ok=True)
+        torch.save(self.model.state_dict(), self.experiment_dir + f'/{stage}.pth')
         if logs:
-            with open(self.experiments_dir + f'/{stage}_logs.json', 'w') as f:
+            with open(self.experiment_dir + f'/{stage}_logs.json', 'w') as f:
                 json.dump(logs, f)
 
     def train(self, pretrain_epochs, finetune1_epochs, finetune2_epochs, interval, crop_times):
+        pretrain_time_cost = 0
+        finetune1_time_cost = 0
+        finetune2_time_cost = 0
         stage = self.jump_to_progress()
         if stage is None and pretrain_epochs > 0:
             # Pretrain
@@ -74,9 +78,9 @@ class Trainer:
                 pretrain_logs["loss"].append(loss_mse)
                 tqdm.write(f"P {epoch} loss: {loss_mse}")
             time_end = time.time()
-            time_cost = time_end - time_start
-            print('P time cost', time_cost, 's')
-            pretrain_logs["time_cost"] = time_cost
+            pretrain_time_cost = time_end - time_start
+            print('P time cost', pretrain_time_cost, 's')
+            pretrain_logs["time_cost"] = pretrain_time_cost
             self.save_model('pretrain', pretrain_logs)
             torch.cuda.empty_cache()
         if (stage is None or stage == 'pretrain') and finetune1_epochs > 0:
@@ -100,9 +104,9 @@ class Trainer:
                 finetune1_logs["loss"].append(loss_mse)
                 tqdm.write(f"FT1 {epoch} loss: {loss_mse}")
             time_end = time.time()
-            time_cost = time_end - time_start
-            print('FT1 time cost', time_cost, 's')
-            finetune1_logs["time_cost"] = time_cost
+            finetune1_time_cost = time_end - time_start
+            print('FT1 time cost', finetune1_time_cost, 's')
+            finetune1_logs["time_cost"] = finetune1_time_cost
             self.save_model('finetune1', finetune1_logs)
             torch.cuda.empty_cache()
 
@@ -157,19 +161,24 @@ class Trainer:
                 finetune2_logs["discriminator_loss"].append(discriminator_loss)
                 tqdm.write(f'FT2 {epoch} Generator loss: {generator_loss} Discriminator loss: {discriminator_loss}')
             time_end = time.time()
-            time_cost = time_end - time_start
-            print('FT2 time cost', time_cost, 's')
+            finetune2_time_cost = time_end - time_start
+            print('FT2 time cost', finetune2_time_cost, 's')
+            finetune2_logs["time_cost"] = finetune2_time_cost
             self.save_model('finetune2', finetune2_logs)
+            torch.save(self.discriminator.state_dict(), self.experiment_dir + f'/{ft2_D}.pth')
             torch.cuda.empty_cache()
+        return pretrain_time_cost, finetune1_time_cost, finetune2_time_cost
 
     def inference(self, interval, load_model=None):
         Path(self.inference_dir).mkdir(parents=True, exist_ok=True)
-        if len(os.listdir(self.inference_dir)) >= 100:
-            print("Inference Already Done")
-            return
+        if os.path.exists(self.experiment_dir + '/inference.json'):
+            with open(self.experiment_dir + '/inference.json', 'r') as f:
+                inference_logs = json.load(f)
+                return inference_logs["PSNR"], inference_logs["PSNR_list"]
         if load_model:
             self.load_model(load_model)
         print('=======Inference========')
+        start_time = time.time()
         low, high = self.dataset.low_res, self.dataset.hi_res
         for i in tqdm(range(0, len(low), interval + 1)):
             if i + 1 + interval < len(low):
@@ -186,19 +195,39 @@ class Trainer:
                 with torch.no_grad():
                     s = self.model(ls, le)
                     s = s.detach().cpu().numpy()
-                    for j in range(0, interval + 2):
+                    for j in range(0 if i == 0 else 1, interval + 2):
                         data = s[0][j]
                         data = np.asarray(data, dtype='<f')
                         data = data.flatten('F')
                         data.tofile(
                             f'{self.inference_dir}{self.dataset.dataset}-{self.dataset.selected_var}-{i + j + 1}.raw',
                             format='<f')
+                        self.predict_data.append(data)
+        end_time = time.time()
+        time_cost = end_time - start_time
+        print('Inference time cost', time_cost, 's')
+        PSNR, PSNR_list = self.psnr()
+        inference_logs = {"time_cost": time_cost, "PSNR": PSNR, "PSNR_list": PSNR_list}
+        with open(self.experiment_dir + '/inference.json', 'w') as f:
+            json.dump(inference_logs, f)
+        return PSNR, PSNR_list
+
+    def psnr(self):
+        print("=======Evaluating========")
+        PSNR_list = []
+        for ind, GT in enumerate(tqdm(self.dataset.hi_res)):
+            cmp = self.predict_data[ind]
+            GT = GT.flatten('F')
+            GT_range = GT.max() - GT.min()
+            MSE = np.mean((GT - cmp) ** 2)
+            PSNR = 20 * np.log10(GT_range) - 10 * np.log10(MSE)
+            PSNR_list.append(PSNR)
+        print(f"PSNR is {np.mean(PSNR_list)}")
+        print(f"array:\n {PSNR_list}")
+        return np.mean(PSNR_list), PSNR_list
 
     def increase_framerate(self, interval, load_model=None):
         Path(self.inference_dir).mkdir(parents=True, exist_ok=True)
-        if len(os.listdir(self.inference_dir)) >= 100:
-            print("Inference Already Done")
-            return
         if load_model:
             self.load_model(load_model)
         print('=======Inference========')

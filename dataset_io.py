@@ -7,14 +7,13 @@ from tqdm import tqdm
 import torch
 from torch.utils.data import DataLoader
 
-batch_size = 8
-
 
 class Dataset:
-    def __init__(self, root_data_dir, dataset, selected_var, scale):
+    def __init__(self, root_data_dir, dataset, selected_var, scale, batch_size):
         self.dataset = dataset
         self.root_data_dir = root_data_dir
         self.selected_var = selected_var
+        self.batch_size = batch_size
         self.hi_res_data_dir = os.path.join(self.root_data_dir, 'processed_data', self.dataset, self.selected_var,
                                             'high_res/')
         self.lo_res_data_dir = os.path.join(self.root_data_dir, 'processed_data', self.dataset, self.selected_var,
@@ -102,15 +101,14 @@ class Dataset:
         le_train = torch.FloatTensor(le_train)
         li_train = torch.FloatTensor(li_train)
         data = torch.utils.data.TensorDataset(ls_train, le_train, li_train)
-        train_loader = DataLoader(dataset=data, batch_size=batch_size, shuffle=True)
+        train_loader = DataLoader(dataset=data, batch_size=self.batch_size, shuffle=True)
         return train_loader
 
     def spacial_crop(self, low_res_window, crop_times, interval):
         low_start = []
         low_end = []
         low_all = []
-        n = 0
-        while n < crop_times:
+        for i in range(crop_times):
             x = np.random.randint(0, self.dims[0] // self.scale - self.crop_size[0])
             y = np.random.randint(0, self.dims[1] // self.scale - self.crop_size[1])
             z = np.random.randint(0, self.dims[2] // self.scale - self.crop_size[2])
@@ -122,18 +120,18 @@ class Dataset:
             low_start.append(ls_)
             low_end.append(le_)
             low_all.append(li_)
-            n = n + 1
         return low_start, low_end, low_all
 
     def spacial_temporal_dataloader(self, interval, crop_times):
-        num = len(self.low_res) - interval - 1
-        ls_train = np.zeros((crop_times * num, 1, self.crop_size[0], self.crop_size[1], self.crop_size[2]))
-        le_train = np.zeros((crop_times * num, 1, self.crop_size[0], self.crop_size[1], self.crop_size[2]))
+        train_samples = range(0, self.total_samples, interval + 1)
+        num_windows = len(train_samples) - interval - 1
+        ls_train = np.zeros((crop_times * num_windows, 1, self.crop_size[0], self.crop_size[1], self.crop_size[2]))
+        le_train = np.zeros((crop_times * num_windows, 1, self.crop_size[0], self.crop_size[1], self.crop_size[2]))
         hi_train = np.zeros(
-            (crop_times * num, interval + 2, self.crop_size[0] * self.scale, self.crop_size[1] * self.scale,
+            (crop_times * num_windows, interval + 2, self.crop_size[0] * self.scale, self.crop_size[1] * self.scale,
              self.crop_size[2] * self.scale))
         idx = 0
-        for t in range(0, num):
+        for t in train_samples[:-(interval + 1)]:
             ls_, le_, hi_ = self.spacial_temporal_crop(self.low_res[t:t + interval + 2],
                                                        self.hi_res[t:t + interval + 2], crop_times, interval)
             for j in range(0, crop_times):
@@ -145,15 +143,14 @@ class Dataset:
         le_train = torch.FloatTensor(le_train)
         hi_train = torch.FloatTensor(hi_train)
         data = torch.utils.data.TensorDataset(ls_train, le_train, hi_train)
-        train_loader = DataLoader(dataset=data, batch_size=batch_size, shuffle=True)
+        train_loader = DataLoader(dataset=data, batch_size=self.batch_size, shuffle=True)
         return train_loader
 
     def spacial_temporal_crop(self, low_res_window, high_res_window, crop_times, interval):
         hi = []
         ls = []
         le = []
-        n = 0
-        while n < crop_times:
+        for _ in range(crop_times):
             x = np.random.randint(0, self.dims[0] // self.scale - self.crop_size[0])
             y = np.random.randint(0, self.dims[1] // self.scale - self.crop_size[1])
             z = np.random.randint(0, self.dims[2] // self.scale - self.crop_size[2])
@@ -167,29 +164,4 @@ class Dataset:
             ls.append(ls_)
             hi.append(hi_)
             le.append(le_)
-            n = n + 1
         return ls, le, hi
-
-    def psnr(self, eval_source):
-        if type(eval_source) != str:
-            eval_source = eval_source.inference_dir
-        if not os.path.exists(eval_source):
-            return float('nan'), []
-        if os.path.exists(eval_source+'PSNR.json'):
-            with open(eval_source+'PSNR.json', 'r') as f:
-                data = json.load(f)
-            return data['mean'], data['array']
-        print("=======Evaluating========")
-        PSNR_list = []
-        for ind, GT in enumerate(tqdm(self.hi_res)):
-            cmp = np.fromfile(f'{eval_source}{self.dataset}-{self.selected_var}-{ind + 1}.raw', dtype='<f')
-            GT = GT.flatten('F')
-            GT_range = GT.max() - GT.min()
-            MSE = np.mean((GT - cmp) ** 2)
-            PSNR = 20 * np.log10(GT_range) - 10 * np.log10(MSE)
-            PSNR_list.append(PSNR)
-        print(f"PSNR is {np.mean(PSNR_list)}")
-        print(f"array:\n {PSNR_list}")
-        with open(f'{eval_source}PSNR.json', 'w') as f:
-            json.dump({"mean": np.mean(PSNR_list), "array": PSNR_list}, f)
-        return np.mean(PSNR_list), PSNR_list
