@@ -138,7 +138,7 @@ class D(nn.Module):
         c = None
         comps = []
         for i in range(num):
-            f = F.relu(self.conv1(x[:, i:i+1, :, :, :, ]))
+            f = F.relu(self.conv1(x[:, i:i + 1, :, :, :, ]))
             f = F.relu(self.conv2(f))
             h, c = self.lstm(f, h, c)
             f = self.conv3(f)
@@ -306,8 +306,15 @@ class Net(nn.Module):
         ue = self.upscaler(self.s(e))
         if self.interval >= 1:
             ui = torch.stack([self.upscaler(self.t._modules['temporal' + str(t + 1)](torch.cat((s, e), dim=1))) for t in
-                              range(0, self.interval)],dim=1)
+                              range(0, self.interval)], dim=1)
             return torch.cat((us, ui.squeeze(2), ue), dim=1)
         else:
             # TODO: probably not right
             return torch.cat((us, ue), dim=0)
+
+
+def prep_model(model):
+    model = model.cuda()
+    model = nn.DataParallel(model)
+    model.apply(weights_init_kaiming)
+    return model

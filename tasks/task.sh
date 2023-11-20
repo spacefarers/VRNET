@@ -1,14 +1,13 @@
 #!/bin/bash
-#$ -M michaelx@yangm.tech
-#$ -q gpu@qa-v100-* -l gpu=2
+#$ -M michael@yangm.tech
+#$ -q gpu@qa-p100-* -l gpu=2
 #$ -m e
 #$ -r y
 #$ -N exp
 
 conda activate ml
-
-# pretrain and finetune
+fsync $SGE_STDOUT_PATH &
 
 python3 ../run.py --run_id=$SGE_TASK_ID --finetune1_epochs=50 --finetune2_epochs=200
 
-# qsub -t 11-20 task.sh
+# qsub -t 1-10 task.sh

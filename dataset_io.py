@@ -9,11 +9,12 @@ from torch.utils.data import DataLoader
 
 
 class Dataset:
-    def __init__(self, root_data_dir, dataset, selected_var, scale, batch_size):
+    def __init__(self, root_data_dir, dataset, selected_var, scale, interval, batch_size):
         self.dataset = dataset
         self.root_data_dir = root_data_dir
         self.selected_var = selected_var
         self.batch_size = batch_size
+        self.interval = interval
         self.hi_res_data_dir = os.path.join(self.root_data_dir, 'processed_data', self.dataset, self.selected_var,
                                             'high_res/')
         self.lo_res_data_dir = os.path.join(self.root_data_dir, 'processed_data', self.dataset, self.selected_var,
@@ -35,6 +36,8 @@ class Dataset:
 
         self.hi_res = []
         self.low_res = []
+        self.hi_res_train = []
+        self.low_res_train = []
 
     def prepare_data(self):
         print("Processing Data...")
@@ -66,7 +69,7 @@ class Dataset:
                 return False
         return True
 
-    def load(self):
+    def load(self, use_all_data=False):
         self.hi_res = []
         self.low_res = []
         if not self.check_processed_data():
@@ -82,58 +85,24 @@ class Dataset:
             self.low_res.append(lo_)
         self.hi_res = np.asarray(self.hi_res)
         self.low_res = np.asarray(self.low_res)
+        self.hi_res_train = np.array(
+            [self.hi_res[i] for i in (range(0, self.total_samples, self.interval + 1) if not use_all_data else range(
+                self.total_samples))])
+        self.low_res_train = np.array(
+            [self.low_res[i] for i in (range(0, self.total_samples, self.interval + 1) if not use_all_data else range(
+                self.total_samples))])
 
-    def spacial_dataloader(self, interval, crop_times):
-        num_windows = len(self.hi_res) - interval - 1
-        ls_train = np.zeros((crop_times * num_windows, 1, self.crop_size[0], self.crop_size[1], self.crop_size[2]))
-        le_train = np.zeros((crop_times * num_windows, 1, self.crop_size[0], self.crop_size[1], self.crop_size[2]))
-        li_train = np.zeros(
-            (crop_times * num_windows, interval + 2, self.crop_size[0], self.crop_size[1], self.crop_size[2]))
-        idx = 0
-        for t in range(0, num_windows):
-            ls_, le_, li_ = self.spacial_crop(self.low_res[t:t + interval + 2], crop_times, interval)
-            for j in range(0, crop_times):
-                ls_train[idx] = ls_[j]
-                le_train[idx] = le_[j]
-                li_train[idx] = li_[j]
-                idx += 1
-        ls_train = torch.FloatTensor(ls_train)
-        le_train = torch.FloatTensor(le_train)
-        li_train = torch.FloatTensor(li_train)
-        data = torch.utils.data.TensorDataset(ls_train, le_train, li_train)
-        train_loader = DataLoader(dataset=data, batch_size=self.batch_size, shuffle=True)
-        return train_loader
-
-    def spacial_crop(self, low_res_window, crop_times, interval):
-        low_start = []
-        low_end = []
-        low_all = []
-        for i in range(crop_times):
-            x = np.random.randint(0, self.dims[0] // self.scale - self.crop_size[0])
-            y = np.random.randint(0, self.dims[1] // self.scale - self.crop_size[1])
-            z = np.random.randint(0, self.dims[2] // self.scale - self.crop_size[2])
-
-            ls_ = low_res_window[0:1, x:x + self.crop_size[0], y:y + self.crop_size[1], z:z + self.crop_size[2]]
-            le_ = low_res_window[interval + 1:interval + 2, x:x + self.crop_size[0], y:y + self.crop_size[1],
-                  z:z + self.crop_size[2]]
-            li_ = low_res_window[:, x:x + self.crop_size[0], y:y + self.crop_size[1], z:z + self.crop_size[2]]
-            low_start.append(ls_)
-            low_end.append(le_)
-            low_all.append(li_)
-        return low_start, low_end, low_all
-
-    def spacial_temporal_dataloader(self, interval, crop_times):
-        train_samples = range(0, self.total_samples, interval + 1)
-        num_windows = len(train_samples) - interval - 1
+    def spacial_temporal_dataloader(self, crop_times):
+        num_windows = len(self.hi_res_train) - self.interval - 1
         ls_train = np.zeros((crop_times * num_windows, 1, self.crop_size[0], self.crop_size[1], self.crop_size[2]))
         le_train = np.zeros((crop_times * num_windows, 1, self.crop_size[0], self.crop_size[1], self.crop_size[2]))
         hi_train = np.zeros(
-            (crop_times * num_windows, interval + 2, self.crop_size[0] * self.scale, self.crop_size[1] * self.scale,
+            (crop_times * num_windows, self.interval + 2, self.crop_size[0] * self.scale, self.crop_size[1] * self.scale,
              self.crop_size[2] * self.scale))
         idx = 0
-        for t in train_samples[:-(interval + 1)]:
-            ls_, le_, hi_ = self.spacial_temporal_crop(self.low_res[t:t + interval + 2],
-                                                       self.hi_res[t:t + interval + 2], crop_times, interval)
+        for t in range(num_windows):
+            ls_, le_, hi_ = self.spacial_temporal_crop(self.low_res_train[t:t + self.interval + 2],
+                                                       self.hi_res_train[t:t + self.interval + 2], crop_times, self.interval)
             for j in range(0, crop_times):
                 ls_train[idx] = ls_[j]
                 le_train[idx] = le_[j]
