@@ -2,39 +2,36 @@ import model
 from dataset_io import Dataset
 import train
 import time
-import platform
-
-dataset = 'half-cylinder'
-
-if platform.node() == 'PowerPC':
-    experiments_dir = '/mnt/d/experiments/'
-    root_data_dir = '/mnt/d/data/'
-else:
-    root_data_dir = '/afs/crc.nd.edu/user/m/myang9/data/'
-    experiments_dir = '/afs/crc.nd.edu/user/m/myang9/experiments/'
-
-pretrain_vars = ["160", "320", "6400"]
-
-interval = 2
-crop_times = 4
-scale = 4
-batch_size = 4
+import config
+import json
 
 if __name__ == "__main__":
-    run_id = 101
-    start_time = time.time()
-    datasets = [Dataset(root_data_dir, dataset, var, scale, interval, batch_size) for var in pretrain_vars]
-    for dataset_io in datasets:
-        dataset_io.load(True)
-    M = model.Net(interval, scale)
+    config.run_id = 105
+    config.finetune1_epochs = 5
+    config.finetune2_epochs = 5
+    datasets = {}
+    for var in (config.pretrain_vars + ["640"]):
+        dataset_io = Dataset(var)
+        datasets[var] = dataset_io
+    M = model.Net()
     D = model.D()
-    model.prep_model(M)
-    model.prep_model(D)
-    for cycle in range(20):
+    M = model.prep_model(M)
+    D = model.prep_model(D)
+
+    training_logs = {}
+    for cycle in range(5):
+        start_time = time.time()
         print(f"Cycle {cycle}:")
-        for ind, var in enumerate(pretrain_vars):
+        for ind, var in enumerate(config.pretrain_vars):
             print(f"Training on {var}...")
-            T = train.Trainer(datasets[ind], run_id, experiments_dir, M, D)
-            _, _, _, M, D = T.train(2, 5, interval, crop_times, True)
-    end_time = time.time()
-    print(f"Total time cost is {end_time - start_time}")
+            T = train.Trainer(datasets[var], M, D)
+            _, _, _, M, D = T.train(True)
+        end_time = time.time()
+        print(f"Training Time cost: {end_time - start_time}")
+        print("Evaluating...")
+        T = train.Trainer(datasets["640"], M, D)
+        PSNR, _ = T.inference(write_to_file=False)
+        print(f"Cycle {cycle} PSNR: {PSNR}")
+        training_logs[cycle] = PSNR
+        with open(f"{config.experiments_dir}{config.run_id:03d}/ensemble_training.json", "w") as f:
+            json.dump(training_logs, f)

@@ -1,12 +1,8 @@
 import torch.nn as nn
 from torch.nn import init
-from torch.nn.modules import conv, Linear
 import torch.nn.functional as F
 import torch
-from collections import OrderedDict
-import math
-import torch.optim as optim
-import copy
+import config
 
 
 def weights_init_kaiming(m):
@@ -59,8 +55,8 @@ class LSTMCell(nn.Module):
             state_size = [batch_size, self.hidden_size] + list(spatial_size)
             prev_hidden = torch.zeros(state_size)
             prev_cell = torch.zeros(state_size)
-        prev_hidden = prev_hidden.cuda()
-        prev_cell = prev_cell.cuda()
+        prev_hidden = prev_hidden.to(config.device)
+        prev_cell = prev_cell.to(config.device)
         stacked_inputs = torch.cat((input_, prev_hidden), 1)
         gates = self.Gates(stacked_inputs)
 
@@ -191,7 +187,7 @@ class UNet(nn.Module):
 
 
 def conv3d(input, weight, bias=None, stride=1, padding=1, dilation=1, groups=1):
-    return F.conv3d(input, weight.cuda(), bias.cuda(), stride, padding, dilation, groups)
+    return F.conv3d(input, weight.to(config.device), bias.to(config.device), stride, padding, dilation, groups)
 
 
 def relu(input):
@@ -199,7 +195,7 @@ def relu(input):
 
 
 def vs(input, weight, bias=None, factor=1, stride=1, padding=1, dilation=1, groups=1):
-    x = F.conv3d(input, weight.cuda(), bias.cuda(), stride, padding, dilation, groups)
+    x = F.conv3d(input, weight.to(config.device), bias.to(config.device), stride, padding, dilation, groups)
     return voxel_shuffle(x, factor)
 
 
@@ -274,24 +270,24 @@ class FeatureExtractor(nn.Module):
 
 
 class Net(nn.Module):
-    def __init__(self, interval, scale):
+    def __init__(self):
         super(Net, self).__init__()
-        self.interval = interval
-        self.scale = scale
+        self.interval = config.interval
+        self.scale = config.scale
         self.s = FeatureExtractor(1)
 
         self.t = nn.Sequential()
-        for k in range(0, interval):
+        for k in range(0, self.interval):
             self.t.add_module('temporal' + str(k + 1), FeatureExtractor(2))
 
-        if scale == 4:
+        if self.scale == 4:
             self.upscaler = nn.Sequential(*[Upscale(64, 64),
                                             nn.ReLU(True),
                                             Upscale(64, 32),
                                             nn.ReLU(True),
                                             nn.Conv3d(32, 1, 3, 1, 1)
                                             ])
-        elif scale == 8:
+        elif self.scale == 8:
             self.upscaler = nn.Sequential(*[Upscale(64 // 2, 64 // 2),
                                             nn.ReLU(True),
                                             Upscale(64 // 2, 32 // 2),
@@ -309,12 +305,11 @@ class Net(nn.Module):
                               range(0, self.interval)], dim=1)
             return torch.cat((us, ui.squeeze(2), ue), dim=1)
         else:
-            # TODO: probably not right
-            return torch.cat((us, ue), dim=0)
+            return torch.cat((us, ue), dim=1)
 
 
 def prep_model(model):
-    model = model.cuda()
+    model = model.to(config.device)
     model = nn.DataParallel(model)
     model.apply(weights_init_kaiming)
     return model
