@@ -89,6 +89,7 @@ class Dataset:
         self.low_res = np.asarray(self.low_res)
 
     def get_data(self, splice_strategy):
+        self.load()
         if splice_strategy == "interval":
             splice_strategy = self.interval_splice
         elif splice_strategy == "train":

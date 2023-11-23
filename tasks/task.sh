@@ -1,7 +1,7 @@
 #!/bin/bash
-#$ -M michael@yangm.tech
-#$ -q gpu@qa-p100-* -l gpu=1
-#$ -m e
+# -M michael@yangm.tech
+#$ -q gpu@qa-p100-* -l gpu=2
+# -m e
 #$ -r y
 #$ -N stnet_BL
 

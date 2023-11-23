@@ -1,18 +1,23 @@
 import platform
 import torch
+import wandb
+from tqdm import tqdm
 
-device = platform.node()
+machine = platform.node()
 
 dataset = 'half-cylinder'
 
-if device == 'PowerPC':
+if machine == 'PowerPC':
     experiments_dir = '/mnt/d/experiments/'
     root_data_dir = '/mnt/d/data/'
     processed_dir = '/mnt/d/data/processed_data/'
-else:
+elif 'crc' in machine:
+    machine = 'CRC'
     root_data_dir = '/afs/crc.nd.edu/user/m/myang9/data/'
     experiments_dir = '/scratch365/myang9/experiments/'
     processed_dir = "/scratch365/myang9/processed_data/"
+else:
+    raise Exception("Unknown machine")
 
 pretrain_vars = ["160", "320", "6400"]
 
@@ -35,3 +40,20 @@ if torch.cuda.is_available():
     device = torch.device('cuda')
 else:
     device = torch.device('cpu')
+wandb_init = False
+
+
+def init_wandb():
+    global wandb_init
+    wandb_init = True
+    wandb.init(
+        project='VRNET',
+        name=f'{run_id:03d} ({machine})',
+        tags=[machine, dataset]
+    )
+
+
+def log(data):
+    if not wandb_init:
+        init_wandb()
+    wandb.log(data)

@@ -8,6 +8,7 @@ import json
 import time
 import config
 from matplotlib import pyplot as plt
+import wandb
 
 
 class Trainer:
@@ -51,14 +52,14 @@ class Trainer:
         finetune2_time_cost = 0
         self.model.train()
         stage = self.jump_to_progress() if not disable_jump else None
+        train_loader = self.dataset.get_data("train")
         if (stage is None or stage == 'pretrain') and config.finetune1_epochs > 0:
-            self.dataset.load()
             # Finetune 1
             print('=======Finetune 1========')
             time_start = time.time()
             finetune1_logs = {"loss": []}
             for epoch in tqdm(range(1, config.finetune1_epochs + 1), position=0):
-                train_loader = self.dataset.get_data("train")
+                # train_loader = self.dataset.get_data("train")
                 loss_mse = 0
                 for batch_idx, (ls, le, li, hi) in enumerate(tqdm(train_loader, position=1, leave=False)):
                     ls = ls.to(self.config.device)
@@ -71,7 +72,8 @@ class Trainer:
                     loss_mse += error.mean().item()
                     self.optimizer_G.step()
                 finetune1_logs["loss"].append(loss_mse)
-                tqdm.write(f"FT1 {epoch} loss: {loss_mse}")
+                tqdm.write(f'FT1 loss: {loss_mse}')
+                config.log({"FT1 loss": loss_mse})
             time_end = time.time()
             finetune1_time_cost = time_end - time_start
             print('FT1 time cost', finetune1_time_cost, 's')
@@ -80,13 +82,12 @@ class Trainer:
             torch.cuda.empty_cache()
 
         if stage != 'finetune2' and config.finetune2_epochs > 0:
-            self.dataset.load()
             # Finetune 2
             tqdm.write('=======Finetune 2========')
             time_start = time.time()
             finetune2_logs = {"generator_loss": [], "discriminator_loss": []}
             for epoch in tqdm(range(1, config.finetune2_epochs + 1), position=0):
-                train_loader = self.dataset.get_data("train")
+                # train_loader = self.dataset.get_data("train")
                 generator_loss = 0
                 discriminator_loss = 0
                 for batch_idx, (ls, le, li, hi) in enumerate(tqdm(train_loader, position=1, leave=False)):
@@ -129,7 +130,8 @@ class Trainer:
                         p.requires_grad = True
                 finetune2_logs["generator_loss"].append(generator_loss)
                 finetune2_logs["discriminator_loss"].append(discriminator_loss)
-                tqdm.write(f'FT2 {epoch} Generator loss: {generator_loss} Discriminator loss: {discriminator_loss}')
+                tqdm.write(f'FT2 G loss: {generator_loss}, D loss: {discriminator_loss}')
+                config.log({"FT2 G loss": generator_loss, "FT2 D loss": discriminator_loss})
             time_end = time.time()
             finetune2_time_cost = time_end - time_start
             print('FT2 time cost', finetune2_time_cost, 's')
@@ -148,7 +150,6 @@ class Trainer:
                     inference_logs = json.load(f)
                     self.inference_logs = inference_logs
                     return inference_logs["PSNR"], inference_logs["PSNR_list"]
-        self.dataset.load()
         self.model.eval()
         if load_model:
             self.load_model(self.experiment_dir + f'/{load_model}.pth')
@@ -163,8 +164,8 @@ class Trainer:
             with torch.no_grad():
                 pred = self.model(ls, le)
                 pred = pred.detach().cpu().numpy()
-                for b in range(config.batch_size):
-                    for j in range(0 if b + ind == 0 else 1, self.interval + 2):
+                for b in range(pred.shape[0]):
+                    for j in range(self.interval + 2):
                         data = pred[b][j]
                         data = np.asarray(data, dtype='<f')
                         data = data.flatten('F')
@@ -236,4 +237,5 @@ class Trainer:
         plt.ylabel('PSNR')
         plt.title(f'#{config.run_id}: {config.dataset} {self.dataset.selected_var} PSNR')
         plt.yticks(list(plt.yticks()[0]) + [self.inference_logs["PSNR"]])
+        config.log({"PSNR Plot": plt})
         plt.savefig(self.experiment_dir + '/PSNR.png', dpi=300)
