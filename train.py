@@ -49,6 +49,7 @@ class Trainer:
         pretrain_time_cost = 0
         finetune1_time_cost = 0
         finetune2_time_cost = 0
+        self.model.train()
         stage = self.jump_to_progress() if not disable_jump else None
         if (stage is None or stage == 'pretrain') and config.finetune1_epochs > 0:
             self.dataset.load()
@@ -148,6 +149,7 @@ class Trainer:
                     self.inference_logs = inference_logs
                     return inference_logs["PSNR"], inference_logs["PSNR_list"]
         self.dataset.load()
+        self.model.eval()
         if load_model:
             self.load_model(self.experiment_dir + f'/{load_model}.pth')
         print('=======Inference========')
@@ -156,20 +158,21 @@ class Trainer:
         for ind, (ls, le) in enumerate(tqdm(lo_res_interval_loader)):
             ls = ls.to(self.config.device)
             le = le.to(self.config.device)
-            ls = ls.unsqueeze(0).unsqueeze(0)
-            le = le.unsqueeze(0).unsqueeze(0)
+            ls = ls.unsqueeze(1)
+            le = le.unsqueeze(1)
             with torch.no_grad():
                 pred = self.model(ls, le)
                 pred = pred.detach().cpu().numpy()
-                for j in range(0 if ind == 0 else 1, self.interval + 2):
-                    data = pred[0][j]
-                    data = np.asarray(data, dtype='<f')
-                    data = data.flatten('F')
-                    if write_to_file:
-                        data.tofile(
-                            f'{self.inference_dir}{self.dataset.dataset}-{self.dataset.selected_var}-{ind * (self.interval + 1) + j + 1}.raw',
-                            format='<f')
-                    self.predict_data.append(data)
+                for b in range(config.batch_size):
+                    for j in range(0 if b + ind == 0 else 1, self.interval + 2):
+                        data = pred[b][j]
+                        data = np.asarray(data, dtype='<f')
+                        data = data.flatten('F')
+                        if write_to_file:
+                            data.tofile(
+                                f'{self.inference_dir}{self.dataset.dataset}-{self.dataset.selected_var}-{ind * config.batch_size * (self.interval + 1) + b * (self.interval + 1) + j + 1}.raw',
+                                format='<f')
+                        self.predict_data.append(data)
         end_time = time.time()
         time_cost = end_time - start_time
         print('Inference time cost', time_cost, 's')
@@ -226,7 +229,7 @@ class Trainer:
     def save_plot(self):
         x = self.inference_logs["PSNR_list"]
         axes = plt.gca()
-        axes.set_ylim([0, np.max(x)+5])
+        axes.set_ylim([0, np.max(x) + 5])
         plt.plot(x)
         plt.axhline(y=self.inference_logs["PSNR"], color='r', linestyle='--')
         plt.xlabel('Frame')

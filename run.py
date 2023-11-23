@@ -6,7 +6,6 @@ import fire
 
 
 def run(run_id=1, finetune1_epochs=10, finetune2_epochs=50):
-    config.batch_size = 1
     config.run_id = run_id
     config.finetune1_epochs = finetune1_epochs
     config.finetune2_epochs = finetune2_epochs
