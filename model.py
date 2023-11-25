@@ -217,7 +217,7 @@ class Switch(nn.Module):
         return x * torch.sigmoid(self.beta * x)
 
 
-class RDB(nn.Module):
+class RDB(nn.Module): # Residual Dense Block
     def __init__(self, init_channels, outchannels, active='relu'):
         super(RDB, self).__init__()
         self.conv1 = nn.Conv3d(init_channels, 2 * init_channels, 3, 1, 1)

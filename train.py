@@ -13,7 +13,6 @@ import wandb
 
 class Trainer:
     def __init__(self, dataset, model, discriminator=None):
-        self.config = config
         self.model = model
         self.discriminator = discriminator
         self.dataset = dataset
@@ -44,7 +43,7 @@ class Trainer:
         torch.save(self.model.state_dict(), self.experiment_dir + f'/{stage}.pth')
         if logs:
             with open(self.experiment_dir + f'/{stage}_logs.json', 'w') as f:
-                json.dump(logs, f)
+                json.dump(logs, f, indent=4)
 
     def train(self, disable_jump=False):
         pretrain_time_cost = 0
@@ -52,19 +51,18 @@ class Trainer:
         finetune2_time_cost = 0
         self.model.train()
         stage = self.jump_to_progress() if not disable_jump else None
-        train_loader = self.dataset.get_data("train")
         if (stage is None or stage == 'pretrain') and config.finetune1_epochs > 0:
             # Finetune 1
             print('=======Finetune 1========')
             time_start = time.time()
             finetune1_logs = {"loss": []}
             for epoch in tqdm(range(1, config.finetune1_epochs + 1), position=0):
-                # train_loader = self.dataset.get_data("train")
+                train_loader = self.dataset.get_data("train")
                 loss_mse = 0
                 for batch_idx, (ls, le, li, hi) in enumerate(tqdm(train_loader, position=1, leave=False)):
-                    ls = ls.to(self.config.device)
-                    le = le.to(self.config.device)
-                    hi = hi.to(self.config.device)
+                    ls = ls.to(config.device)
+                    le = le.to(config.device)
+                    hi = hi.to(config.device)
                     high = self.model(ls, le)
                     self.optimizer_G.zero_grad()
                     error = (config.interval + 2) * self.criterion(high, hi)
@@ -87,23 +85,23 @@ class Trainer:
             time_start = time.time()
             finetune2_logs = {"generator_loss": [], "discriminator_loss": []}
             for epoch in tqdm(range(1, config.finetune2_epochs + 1), position=0):
-                # train_loader = self.dataset.get_data("train")
+                train_loader = self.dataset.get_data("train")
                 generator_loss = 0
                 discriminator_loss = 0
                 for batch_idx, (ls, le, li, hi) in enumerate(tqdm(train_loader, position=1, leave=False)):
-                    ls = ls.to(self.config.device)
-                    le = le.to(self.config.device)
-                    hi = hi.to(self.config.device)
+                    ls = ls.to(config.device)
+                    le = le.to(config.device)
+                    hi = hi.to(config.device)
 
                     for p in self.model.parameters():
                         p.requires_grad = False
 
                     self.optimizer_D.zero_grad()
                     output_real = self.discriminator(hi)
-                    label_real = torch.ones(output_real.size()).to(self.config.device)
+                    label_real = torch.ones(output_real.size()).to(config.device)
                     real_loss = self.criterion(output_real, label_real)
                     fake_data = self.model(ls, le)
-                    label_fake = torch.zeros(output_real.size()).to(self.config.device)
+                    label_fake = torch.zeros(output_real.size()).to(config.device)
                     output_fake = self.discriminator(fake_data)
                     fake_loss = self.criterion(output_fake, label_fake)
                     loss = 0.5 * (real_loss + fake_loss)
@@ -119,7 +117,7 @@ class Trainer:
                     high = self.model(ls, le)
                     output_real = self.discriminator(high)
                     self.optimizer_G.zero_grad()
-                    label_real = torch.ones(output_real.size()).to(self.config.device)
+                    label_real = torch.ones(output_real.size()).to(config.device)
                     real_loss = self.criterion(output_real, label_real)
                     error = (config.interval + 2) * self.criterion(high, hi) + 1e-3 * real_loss
                     error.backward()
@@ -157,15 +155,15 @@ class Trainer:
         start_time = time.time()
         lo_res_interval_loader = self.dataset.get_data("inference")
         for ind, (ls, le) in enumerate(tqdm(lo_res_interval_loader)):
-            ls = ls.to(self.config.device)
-            le = le.to(self.config.device)
+            ls = ls.to(config.device)
+            le = le.to(config.device)
             ls = ls.unsqueeze(1)
             le = le.unsqueeze(1)
             with torch.no_grad():
                 pred = self.model(ls, le)
                 pred = pred.detach().cpu().numpy()
                 for b in range(pred.shape[0]):
-                    for j in range(self.interval + 2):
+                    for j in range(0 if b+ind==0 else 1,self.interval + 2):
                         data = pred[b][j]
                         data = np.asarray(data, dtype='<f')
                         data = data.flatten('F')
@@ -182,7 +180,7 @@ class Trainer:
         self.inference_logs = inference_logs
         if write_to_file:
             with open(self.experiment_dir + '/inference.json', 'w') as f:
-                json.dump(inference_logs, f)
+                json.dump(inference_logs, f, indent=4)
         return PSNR, PSNR_list
 
     def psnr(self):
@@ -214,8 +212,8 @@ class Trainer:
                 low[i + 1].reshape(1, 1, self.dataset.dims[0] // self.dataset.scale,
                                    self.dataset.dims[1] // self.dataset.scale,
                                    self.dataset.dims[2] // self.dataset.scale))
-            ls = ls.to(self.config.device)
-            le = le.to(self.config.device)
+            ls = ls.to(config.device)
+            le = le.to(config.device)
             with torch.no_grad():
                 s = self.model(ls, le)
                 s = s.detach().cpu().numpy()
@@ -237,5 +235,5 @@ class Trainer:
         plt.ylabel('PSNR')
         plt.title(f'#{config.run_id}: {config.dataset} {self.dataset.selected_var} PSNR')
         plt.yticks(list(plt.yticks()[0]) + [self.inference_logs["PSNR"]])
-        config.log({"PSNR Plot": plt})
         plt.savefig(self.experiment_dir + '/PSNR.png', dpi=300)
+        config.log({"PSNR Plot": wandb.Image(self.experiment_dir + '/PSNR.png', caption=f'#{config.run_id}: {config.dataset} {self.dataset.selected_var} PSNR')})

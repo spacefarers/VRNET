@@ -5,7 +5,7 @@ import train
 import fire
 
 
-def run(run_id=2, finetune1_epochs=10, finetune2_epochs=50):
+def run(run_id=3, finetune1_epochs=10, finetune2_epochs=50):
     config.run_id = run_id
     config.finetune1_epochs = finetune1_epochs
     config.finetune2_epochs = finetune2_epochs
@@ -19,6 +19,7 @@ def run(run_id=2, finetune1_epochs=10, finetune2_epochs=50):
         T.load_model(config.ensemble_path)
     pretrain_time_cost, finetune1_time_cost, finetune2_time_cost, _, _ = T.train()
     PSNR, _ = T.inference()
+    config.log({"PSNR": PSNR})
     T.save_plot()
     # T.increase_framerate(interval,"finetune2")
     return PSNR, pretrain_time_cost, finetune1_time_cost, finetune2_time_cost

@@ -6,7 +6,7 @@ import config
 import json
 
 if __name__ == "__main__":
-    config.run_id = 105
+    config.run_id = 101
     config.finetune1_epochs = 5
     config.finetune2_epochs = 5
     datasets = {}
@@ -34,4 +34,4 @@ if __name__ == "__main__":
         print(f"Cycle {cycle} PSNR: {PSNR}")
         training_logs[cycle] = PSNR
         with open(f"{config.experiments_dir}{config.run_id:03d}/ensemble_training.json", "w") as f:
-            json.dump(training_logs, f)
+            json.dump(training_logs, f, indent=4)

@@ -17,7 +17,7 @@ repeated_test_log = {"test_epochs": test_epochs, "test_amount": test_amount, "st
 def save_log():
     Path(f"{run.experiments_dir}repeat_logs/").mkdir(parents=True, exist_ok=True)
     with open(f"{run.experiments_dir}repeat_logs/repeated_test_log_{formatted_time}.json", "w") as f:
-        json.dump(repeated_test_log, f)
+        json.dump(repeated_test_log, f, indent=4)
 
 
 if __name__ == "__main__":
