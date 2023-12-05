@@ -7,6 +7,7 @@ os.environ["WANDB_SILENT"] = "true"
 
 machine = platform.node()
 
+# dataset = 'argon'
 dataset = 'half-cylinder'
 
 if 'PowerPC' in machine:
@@ -29,17 +30,23 @@ pretrain_vars = ["160", "320", "6400"]
 
 interval = 2
 crop_times = 4
+# crop_times = 10
 crop_size = [16, 16, 16]
 scale = 4
 load_ensemble_model = False
 ensemble_path = experiments_dir + f"ensemble/{dataset}/ensemble.pth"
 run_id = None
+tags = [machine,dataset]
+lr=(1e-5,4e-5)
 
 pretrain_epochs = 0
 finetune1_epochs = 10
 finetune2_epochs = 10
 
 train_data_split = 20  # percentage of data used for training
+
+run_cycle = None
+ensemble_iter = None
 
 if torch.cuda.is_available():
     device = torch.device('cuda')
@@ -49,6 +56,7 @@ else:
     batch_size = 4
 wandb_init = False
 
+domain_backprop = True
 
 def init_wandb():
     assert run_id is not None, "run_id is not set"
@@ -57,7 +65,7 @@ def init_wandb():
     wandb.init(
         project='VRNET',
         name=f'{run_id:03d} ({machine})',
-        tags=[machine, dataset]
+        tags=tags
     )
 
 
@@ -65,3 +73,4 @@ def log(data):
     if not wandb_init:
         init_wandb()
     wandb.log(data)
+    # pass

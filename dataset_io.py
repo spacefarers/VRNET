@@ -10,7 +10,7 @@ import config
 
 
 class Dataset:
-    def __init__(self, selected_var):
+    def __init__(self, selected_var, train_all_data=False):
         self.dataset = config.dataset
         self.root_data_dir = config.root_data_dir
         self.selected_var = selected_var
@@ -39,12 +39,15 @@ class Dataset:
         self.hi_res = []
         self.low_res = []
         self.interval_splice = [i for i in range(0, self.total_samples, self.interval + 1)]
-        self.train_splice = [i for i in range(0, self.total_samples * config.train_data_split // 100)]
+        if train_all_data:
+            self.train_splice = [i for i in range(0, self.total_samples)]
+        else:
+            self.train_splice = [i for i in range(0, self.total_samples * config.train_data_split // 100)]
 
     def prepare_data(self):
         print("Processing Data...")
         source_data = []
-        for i in tqdm(range(1, self.total_samples + 1)):
+        for i in tqdm(range(1, self.total_samples + 1),leave=False):
             data = np.fromfile(f"{self.var_dir}{self.dataset}-{self.selected_var}-{i}.raw", dtype='<f')
             source_data.append(data)
         source_data = np.asarray(source_data)

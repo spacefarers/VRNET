@@ -3,6 +3,7 @@ from torch.nn import init
 import torch.nn.functional as F
 import torch
 import config
+import numpy as np
 
 
 def weights_init_kaiming(m):
@@ -217,7 +218,7 @@ class Switch(nn.Module):
         return x * torch.sigmoid(self.beta * x)
 
 
-class RDB(nn.Module): # Residual Dense Block
+class RDB(nn.Module):  # Residual Dense Block
     def __init__(self, init_channels, outchannels, active='relu'):
         super(RDB, self).__init__()
         self.conv1 = nn.Conv3d(init_channels, 2 * init_channels, 3, 1, 1)
@@ -269,6 +270,22 @@ class FeatureExtractor(nn.Module):
         return self.s(x)
 
 
+from torch.autograd import Function
+
+
+class ReverseLayerF(Function):
+    @staticmethod
+    def forward(ctx, x, alpha):
+        ctx.alpha = alpha
+
+        return x.view_as(x)
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        output = grad_output.neg() * ctx.alpha
+        return output, None
+
+
 class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
@@ -297,15 +314,23 @@ class Net(nn.Module):
                                             nn.Conv3d(16 // 2, 1, 3, 1, 1)
                                             ])
 
-    def forward(self, s, e):
-        us = self.upscaler(self.s(s))
-        ue = self.upscaler(self.s(e))
-        if self.interval >= 1:
-            ui = torch.stack([self.upscaler(self.t._modules['temporal' + str(t + 1)](torch.cat((s, e), dim=1))) for t in
-                              range(0, self.interval)], dim=1)
-            return torch.cat((us, ui.squeeze(2), ue), dim=1)
-        else:
-            return torch.cat((us, ue), dim=1)
+        self.domain_classifier = nn.Sequential(*[nn.Linear(64 * 16 * 16 * 16, 100),
+                                                 nn.ReLU(True),
+                                                 nn.Dropout(0.5),
+                                                 nn.Linear(100, len(config.pretrain_vars)),
+                                                 nn.LogSoftmax(dim=1)])
+
+    def forward(self, s, e, alpha=None):
+        features = [self.s(s)]
+        for k in range(0, self.interval):
+            features.append(self.t._modules['temporal' + str(k + 1)](torch.cat((s, e), dim=1)))
+        features.append(self.s(e))
+        domain_output = None
+        if self.training:
+            reverse_features = [ReverseLayerF.apply(i, alpha) for i in features]
+            domain_output = torch.cat([self.domain_classifier(torch.flatten(i,start_dim=1)).unsqueeze(1) for i in reverse_features], dim=1)
+        output = torch.cat([self.upscaler(i) for i in features], dim=1)
+        return output, domain_output
 
 
 def prep_model(model):
