@@ -5,7 +5,7 @@ from skimage.transform import resize
 from pathlib import Path
 from tqdm import tqdm
 import torch
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, ConcatDataset
 import config
 
 
@@ -132,7 +132,9 @@ class Dataset:
         lo_res_end = torch.FloatTensor(lo_res_end)
         lo_res_full = torch.FloatTensor(lo_res_full)
         hi_res_full = torch.FloatTensor(hi_res_full)
-        data = torch.utils.data.TensorDataset(lo_res_start, lo_res_end, lo_res_full, hi_res_full)
+        # domain label repeat self.selected_var num_windows*crop_times times
+        domain_label = torch.LongTensor(np.repeat(config.pretrain_vars.index(self.selected_var), num_windows * self.crop_times))
+        data = torch.utils.data.TensorDataset(lo_res_start, lo_res_end, lo_res_full, hi_res_full, domain_label)
         train_loader = DataLoader(dataset=data, batch_size=self.batch_size, shuffle=True)
         return train_loader
 
@@ -158,3 +160,13 @@ class Dataset:
             li.append(li_)
             le.append(le_)
         return ls, le, li, hi
+
+class MixedDataset:
+    def __init__(self, datasets):
+        self.datasets = datasets
+
+    def get_data(self, splice_strategy):
+        # combine 3 dataloaders
+        dataloaders = [dataset.get_data(splice_strategy) for dataset in self.datasets]
+        concat_loader = DataLoader(dataset=ConcatDataset([d.dataset for d in dataloaders]), batch_size=config.batch_size, shuffle=True)
+        return concat_loader

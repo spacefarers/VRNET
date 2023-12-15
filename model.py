@@ -138,7 +138,7 @@ class D(nn.Module):
             f = F.relu(self.conv1(x[:, i:i + 1, :, :, :, ]))
             f = F.relu(self.conv2(f))
             h, c = self.lstm(f, h, c)
-            f = self.conv3(f)
+            f = self.conv3(h)
             f = F.avg_pool3d(f, f.size()[2:]).view(-1)
             comps.append(f)
         comps = torch.stack(comps)
@@ -285,6 +285,32 @@ class ReverseLayerF(Function):
         output = grad_output.neg() * ctx.alpha
         return output, None
 
+class DomainClassifier(nn.Module):
+    def __init__(self):
+        super(DomainClassifier, self).__init__()
+        self.conv1 = nn.Conv3d(64, 128, 4, 2, 1)
+        self.bn1 = nn.BatchNorm3d(128)
+        self.conv2 = nn.Conv3d(128, 256, 4, 2, 1)
+        self.bn2 = nn.BatchNorm3d(256)
+        self.conv3 = nn.Conv3d(256, 512, 4, 2, 1)
+        self.bn3 = nn.BatchNorm3d(512)
+        self.lstm = LSTMCell(512, 512, 3)
+        self.fc1 = nn.Linear(int(np.prod(config.crop_size)), 1024)
+        self.fc2 = nn.Linear(1024, len(config.pretrain_vars))
+
+    def forward(self, x): # x.shape: [batch_size, frames, 64, crop_size[0], crop_size[1], crop_size[2]]
+        h = None
+        c = None
+        for t in range(x.shape[1]):
+            f = F.relu(self.bn1(self.conv1(x[:, t, :, :, :, :])))
+            f = F.relu(self.bn2(self.conv2(f)))
+            f = F.relu(self.bn3(self.conv3(f)))
+            h, c = self.lstm(f, h, c)
+        x = h.view(h.size(0), -1)  # Flatten the tensor
+        x = F.relu(self.fc1(x))
+        x = self.fc2(x)
+        return x
+
 
 class Net(nn.Module):
     def __init__(self):
@@ -314,11 +340,8 @@ class Net(nn.Module):
                                             nn.Conv3d(16 // 2, 1, 3, 1, 1)
                                             ])
 
-        self.domain_classifier = nn.Sequential(*[nn.Linear(64 * 16 * 16 * 16, 100),
-                                                 nn.ReLU(True),
-                                                 nn.Dropout(0.5),
-                                                 nn.Linear(100, len(config.pretrain_vars)),
-                                                 nn.LogSoftmax(dim=1)])
+        if config.domain_backprop:
+            self.domain_classifier = DomainClassifier()
 
     def forward(self, s, e, alpha=None):
         features = [self.s(s)]
@@ -326,9 +349,9 @@ class Net(nn.Module):
             features.append(self.t._modules['temporal' + str(k + 1)](torch.cat((s, e), dim=1)))
         features.append(self.s(e))
         domain_output = None
-        if self.training:
-            reverse_features = [ReverseLayerF.apply(i, alpha) for i in features]
-            domain_output = torch.cat([self.domain_classifier(torch.flatten(i,start_dim=1)).unsqueeze(1) for i in reverse_features], dim=1)
+        if self.training and config.domain_backprop:
+            reverse_features = [ReverseLayerF.apply(i, alpha).unsqueeze(1) for i in features]
+            domain_output = self.domain_classifier(torch.cat(reverse_features, dim=1))
         output = torch.cat([self.upscaler(i) for i in features], dim=1)
         return output, domain_output
 

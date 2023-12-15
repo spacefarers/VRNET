@@ -2,7 +2,7 @@
 # -M michael@yangm.tech
 #$ -q gpu@qa-p100-* -l gpu=2
 
-#$ -l h=!(qa-p100-002|qa-p100-003)
+# -l h=!(qa-p100-002|qa-p100-003)
 
 # -m e
 #$ -r y
@@ -10,6 +10,6 @@
 
 conda activate ml
 
-python3 ../run.py --run_id=$SGE_TASK_ID --finetune1_epochs=5 --finetune2_epochs=5 --cycles=50
+python3 ../run.py --run_id=$SGE_TASK_ID --finetune1_epochs=0 --finetune2_epochs=5 --cycles=5
 
-# qsub -t 11-20 task.sh
+# qsub -t 006-010 task.sh

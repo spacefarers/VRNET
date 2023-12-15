@@ -5,13 +5,13 @@ import train
 import fire
 
 
-def run(run_id=101, finetune1_epochs=10, finetune2_epochs=0, cycles=1, load_ensemble_model=False, tag="run"):
+def run(run_id=103, finetune1_epochs=10, finetune2_epochs=0, cycles=1, load_ensemble_model=False, tag="run"):
     print(f"Running {tag} {run_id}...")
     if tag == "run":
-        lr = (1e-4, 4e-4)
+        config.lr = (1e-4, 4e-4)
         config.tags.append("barebone" if cycles == 1 else "cycles")
     elif tag == "EN-FT":
-        lr = (1e-6, 4e-6)
+        config.lr = (1e-6, 4e-6)
         config.tags.append("EN-FT")
     else:
         raise Exception("Unknown tag")
@@ -39,7 +39,7 @@ def run(run_id=101, finetune1_epochs=10, finetune2_epochs=0, cycles=1, load_ense
         T.run_cycle = cycle
         pretrain_time_cost, finetune1_time_cost, finetune2_time_cost, _, _ = T.train(
             disable_jump=True if cycle > 1 else False)
-        PSNR, _ = T.inference(write_to_file=False if cycle != cycles else True)
+        PSNR, _ = T.inference(write_to_file=False if cycle != cycles else True, disable_jump=True)
         T.save_plot()
         print(f"Cycle {cycle} PSNR: {PSNR}")
         config.log({"PSNR": PSNR})

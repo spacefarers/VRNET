@@ -2,13 +2,25 @@ import platform
 import torch
 import wandb
 import os
+import numpy as np
+
+use_wandb = False
+domain_backprop = False
 
 os.environ["WANDB_SILENT"] = "true"
 
 machine = platform.node()
 
-# dataset = 'argon'
-dataset = 'half-cylinder'
+dataset = 'hurricane'
+# dataset = 'half-cylinder'
+
+
+if torch.cuda.is_available():
+    device = torch.device('cuda')
+    batch_size = torch.cuda.device_count()
+else:
+    device = torch.device('cpu')
+    batch_size = 4
 
 if 'PowerPC' in machine:
     experiments_dir = '/mnt/d/experiments/'
@@ -19,19 +31,25 @@ elif 'crc' in machine:
     root_data_dir = '/afs/crc.nd.edu/user/m/myang9/data/'
     experiments_dir = '/scratch365/myang9/experiments/'
     processed_dir = "/scratch365/myang9/processed_data/"
-elif 'MacBook' in machine:
+    batch_size = 2
+    use_wandb = True
+elif 'MacBook' in machine or 'mbp' in machine:
     root_data_dir = '/Users/spacefarers/data/'
     experiments_dir = '/Users/spacefarers/experiments/'
     processed_dir = '/Users/spacefarers/data/processed_data/'
 else:
     raise Exception("Unknown machine")
 
-pretrain_vars = ["160", "320", "6400"]
+# pretrain_vars = ["160", "320", "6400"]
+pretrain_vars = ["RAIN", "WSMAG"]
+
+target_var = "VAPOR"
 
 interval = 2
 crop_times = 4
 # crop_times = 10
-crop_size = [16, 16, 16]
+# low_res_size for half-cylinder: [160, 60, 20]
+crop_size = [16, 16, 16] # must be multiples of 8 and smaller than low res size
 scale = 4
 load_ensemble_model = False
 ensemble_path = experiments_dir + f"ensemble/{dataset}/ensemble.pth"
@@ -47,16 +65,22 @@ train_data_split = 20  # percentage of data used for training
 
 run_cycle = None
 ensemble_iter = None
-
-if torch.cuda.is_available():
-    device = torch.device('cuda')
-    batch_size = torch.cuda.device_count()
-else:
-    device = torch.device('cpu')
-    batch_size = 4
 wandb_init = False
 
-domain_backprop = True
+print("Machine is", machine)
+print(f"Running on {device} with batch size {batch_size}")
+print("Wandb is", "enabled" if use_wandb else "disabled")
+
+
+def seed_everything(seed=42):
+   np.random.seed(seed)
+   torch.manual_seed(seed)
+   torch.cuda.manual_seed(seed)
+   torch.cuda.manual_seed_all(seed)
+   torch.backends.cudnn.benchmark = False
+   torch.backends.cudnn.deterministic = True
+
+seed_everything()
 
 def init_wandb():
     assert run_id is not None, "run_id is not set"
@@ -70,7 +94,8 @@ def init_wandb():
 
 
 def log(data):
+    if not use_wandb:
+        return
     if not wandb_init:
         init_wandb()
     wandb.log(data)
-    # pass

@@ -10,6 +10,7 @@ import config
 from matplotlib import pyplot as plt
 import wandb
 from torch.nn import functional as F
+from dataset_io import Dataset, MixedDataset
 
 
 class Trainer:
@@ -59,12 +60,14 @@ class Trainer:
             # Finetune 1
             print('=======Finetune 1========')
             time_start = time.time()
-            finetune1_logs = {"loss": []}
+            finetune1_logs = {"loss": [], "domain_loss": [], "domain_accuracy": []}
             config.log({"status": 1})
             for epoch in tqdm(range(1, config.finetune1_epochs + 1), position=0):
                 train_loader = self.dataset.get_data("train")
                 loss_mse = 0
-                for batch_idx, (ls, le, li, hi) in enumerate(tqdm(train_loader, position=1, leave=False)):
+                domain_total_loss = 0
+                domain_acc = 0
+                for batch_idx, (ls, le, li, hi, domain_label) in enumerate(tqdm(train_loader, position=1, leave=False)):
                     p = float((batch_idx + epoch * len(train_loader)) / (config.finetune1_epochs * len(train_loader)))
                     alpha = 2. / (1. + np.exp(-10 * p)) - 1
                     ls = ls.to(config.device)
@@ -73,20 +76,25 @@ class Trainer:
                     high, domain_class = self.model(ls, le, alpha)
                     self.optimizer_G.zero_grad()
                     error = (config.interval + 2) * self.criterion(high, hi)
-                    if "ensemble_training" in config.tags and config.domain_backprop:
-                        domain_label = config.pretrain_vars.index(self.dataset.selected_var)
-                        # reshape to (batch_size, self.interval + 2, len(config.pretrain_vars)) using one hot
-                        domain_label = F.one_hot(torch.tensor(domain_label),
-                                                 num_classes=len(config.pretrain_vars)).repeat(
-                            config.batch_size, self.interval + 2, 1).float().to(config.device)
-                        domain_loss = (config.interval + 2) * 1e-3 * self.domain_criterion(domain_class, domain_label)
-                        error += domain_loss
-                    error.backward()
                     loss_mse += error.mean().item()
+                    if "ensemble_training" in config.tags and config.domain_backprop:
+                        domain_label = F.one_hot(domain_label, num_classes=len(config.pretrain_vars)).float().to(config.device)
+                        domain_loss = (config.interval + 2) * self.domain_criterion(domain_class, domain_label) / 10
+                        domain_total_loss += domain_loss.mean().item()
+                        error += domain_loss
+                        domain_acc += torch.sum(torch.argmax(domain_class, dim=1) == torch.argmax(domain_label,dim=1))
+                    error.backward()
                     self.optimizer_G.step()
+                domain_acc = (domain_acc / (len(train_loader) * config.batch_size)).mean().item()
                 finetune1_logs["loss"].append(loss_mse)
+                finetune1_logs["domain_loss"].append(domain_total_loss)
+                finetune1_logs["domain_accuracy"].append(domain_acc)
                 tqdm.write(f'FT1 loss: {loss_mse}')
+                tqdm.write(f'FT1 domain loss: {domain_total_loss}')
+                tqdm.write(f'FT1 domain accuracy: {domain_acc*100:.2f}%')
                 config.log({"FT1 loss": loss_mse})
+                config.log({"FT1 domain loss": domain_total_loss})
+                config.log({"FT1 domain accuracy": domain_acc*100})
             time_end = time.time()
             finetune1_time_cost = time_end - time_start
             print('FT1 time cost', finetune1_time_cost, 's')
@@ -98,13 +106,15 @@ class Trainer:
             # Finetune 2
             tqdm.write('=======Finetune 2========')
             time_start = time.time()
-            finetune2_logs = {"generator_loss": [], "discriminator_loss": []}
+            finetune2_logs = {"generator_loss": [], "discriminator_loss": [], "domain_loss": []}
             config.log({"status": 2})
             for epoch in tqdm(range(1, config.finetune2_epochs + 1), position=0):
                 train_loader = self.dataset.get_data("train")
                 generator_loss = 0
                 discriminator_loss = 0
-                for batch_idx, (ls, le, li, hi) in enumerate(tqdm(train_loader, position=1, leave=False)):
+                domain_total_loss = 0
+                domain_acc = 0
+                for batch_idx, (ls, le, li, hi, domain_label) in enumerate(tqdm(train_loader, position=1, leave=False)):
                     p = float((batch_idx + epoch * len(train_loader)) / (config.finetune2_epochs * len(train_loader)))
                     alpha = 2. / (1. + np.exp(-10 * p)) - 1
                     ls = ls.to(config.device)
@@ -138,24 +148,28 @@ class Trainer:
                     label_real = torch.ones(output_real.size()).to(config.device)
                     real_loss = self.criterion(output_real, label_real)
                     error = (config.interval + 2) * self.criterion(high, hi) + 1e-3 * real_loss
-                    if "ensemble_training" in config.tags and config.domain_backprop:
-                        domain_label = config.pretrain_vars.index(self.dataset.selected_var)
-                        # reshape to (batch_size, self.interval + 2, len(config.pretrain_vars)) using one hot
-                        domain_label = F.one_hot(torch.tensor(domain_label),
-                                                 num_classes=len(config.pretrain_vars)).repeat(
-                            config.batch_size, self.interval + 2, 1).float().to(config.device)
-                        domain_loss = (config.interval + 2) * 1e-3 * self.domain_criterion(domain_class, domain_label)
-                        error += domain_loss
-                    error.backward()
                     generator_loss += error.mean().item()
+                    if "ensemble_training" in config.tags and config.domain_backprop:
+                        domain_label = F.one_hot(domain_label, num_classes=len(config.pretrain_vars)).float().to(config.device)
+                        domain_loss = (config.interval + 2) * self.domain_criterion(domain_class, domain_label) / 10
+                        domain_total_loss += domain_loss.mean().item()
+                        error += domain_loss
+                        domain_acc += torch.sum(torch.argmax(domain_class, dim=1) == torch.argmax(domain_label,dim=1))
+                    error.backward()
                     self.optimizer_G.step()
 
                     for p in self.discriminator.parameters():
                         p.requires_grad = True
+                domain_acc = (domain_acc / (len(train_loader) * config.batch_size)).mean().item()
                 finetune2_logs["generator_loss"].append(generator_loss)
                 finetune2_logs["discriminator_loss"].append(discriminator_loss)
+                finetune2_logs["domain_loss"].append(domain_total_loss)
                 tqdm.write(f'FT2 G loss: {generator_loss}, D loss: {discriminator_loss}')
+                tqdm.write(f'FT2 domain loss: {domain_total_loss}')
+                tqdm.write(f'FT2 domain accuracy: {domain_acc*100:.2f}%')
                 config.log({"FT2 G loss": generator_loss, "FT2 D loss": discriminator_loss})
+                config.log({"FT2 domain loss": domain_total_loss})
+                config.log({"FT2 domain accuracy": domain_acc*100})
             time_end = time.time()
             finetune2_time_cost = time_end - time_start
             print('FT2 time cost', finetune2_time_cost, 's')
@@ -166,14 +180,16 @@ class Trainer:
         return pretrain_time_cost, finetune1_time_cost, finetune2_time_cost, self.model, self.discriminator
 
     def inference(self, load_model=None, write_to_file=True, disable_jump=False):
+        assert type(self.dataset) == Dataset, "Only support single dataset inference"
         self.predict_data = []
-        if write_to_file and not disable_jump:
+        if write_to_file:
             Path(self.inference_dir).mkdir(parents=True, exist_ok=True)
-            if os.path.exists(self.experiment_dir + '/inference.json'):
-                with open(self.experiment_dir + '/inference.json', 'r') as f:
-                    inference_logs = json.load(f)
-                    self.inference_logs = inference_logs
-                    return inference_logs["PSNR"], inference_logs["PSNR_list"]
+            if not disable_jump:
+                if os.path.exists(self.experiment_dir + '/inference.json'):
+                    with open(self.experiment_dir + '/inference.json', 'r') as f:
+                        inference_logs = json.load(f)
+                        self.inference_logs = inference_logs
+                        return inference_logs["PSNR"], inference_logs["PSNR_list"]
         self.model.eval()
         if load_model:
             self.load_model(self.experiment_dir + f'/{load_model}.pth')
