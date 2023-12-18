@@ -5,7 +5,7 @@ import train
 import fire
 
 
-def run(run_id=100, finetune1_epochs=10, finetune2_epochs=0, cycles=1, load_ensemble_model=False, tag="run"):
+def run(run_id=230, finetune1_epochs=5, finetune2_epochs=5, cycles=1, load_ensemble_model=True, tag="EN-FT"):
     print(f"Running {tag} {run_id}...")
     if tag == "run":
         config.lr = (1e-4, 4e-4)
