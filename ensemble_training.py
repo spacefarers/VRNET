@@ -7,12 +7,13 @@ import json
 from fire import Fire
 
 
-def ensemble_training(run_id=130, finetune1_epochs=5, finetune2_epochs=5, ensemble_epochs=15):
+def ensemble_training(run_id=130, finetune1_epochs=5, finetune2_epochs=5, ensemble_epochs=15, domain_backprop=False):
     print(f"Running ensemble training {run_id}...")
     config.tags.append("ensemble_training")
     config.run_id = run_id
     config.finetune1_epochs = finetune1_epochs
     config.finetune2_epochs = finetune2_epochs
+    config.domain_backprop = domain_backprop
     datasets = {}
     for var in (config.pretrain_vars + [config.target_var]):
         dataset_io = Dataset(var,train_all_data=True)
