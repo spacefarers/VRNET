@@ -10,9 +10,15 @@ os.environ["WANDB_SILENT"] = "true"
 
 machine = platform.node()
 
-dataset = 'hurricane'
-# dataset = 'half-cylinder'
 
+# dataset = 'half-cylinder'
+dataset = 'hurricane'
+#
+# pretrain_vars = ["160", "320", "6400"]
+pretrain_vars = ["RAIN", "WSMAG"]
+#
+# target_var = "640"
+target_var = "VAPOR"
 
 use_wandb = False
 if torch.cuda.is_available():
@@ -44,15 +50,11 @@ elif 'HomePC' in machine:
 else:
     raise Exception("Unknown machine")
 
-# pretrain_vars = ["160", "320", "6400"]
-pretrain_vars = ["RAIN", "WSMAG"]
-
-target_var = "VAPOR"
-
 interval = 2
 crop_times = 4
 # crop_times = 10
 # low_res_size for half-cylinder: [160, 60, 20]
+# low_res_size for Hurricane: [125,125,25]
 crop_size = [16, 16, 16] # must be multiples of 8 and smaller than low res size
 scale = 4
 load_ensemble_model = False

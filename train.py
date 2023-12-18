@@ -82,7 +82,7 @@ class Trainer:
                         domain_loss = (config.interval + 2) * self.domain_criterion(domain_class, domain_label) / 10
                         domain_total_loss += domain_loss.mean().item()
                         error += domain_loss
-                        domain_acc += torch.sum(torch.argmax(domain_class, dim=1) == torch.argmax(domain_label,dim=1)).mean().item()
+                        domain_acc += torch.sum(torch.argmax(domain_class, dim=1) == torch.argmax(domain_label,dim=1)).detach().cpu()
                     error.backward()
                     self.optimizer_G.step()
                 domain_acc = domain_acc / (len(train_loader) * config.batch_size)
@@ -154,7 +154,7 @@ class Trainer:
                         domain_loss = (config.interval + 2) * self.domain_criterion(domain_class, domain_label) / 10
                         domain_total_loss += domain_loss.mean().item()
                         error += domain_loss
-                        domain_acc += torch.sum(torch.argmax(domain_class, dim=1) == torch.argmax(domain_label,dim=1)).mean().item()
+                        domain_acc += torch.sum(torch.argmax(domain_class, dim=1) == torch.argmax(domain_label,dim=1)).detach().cpu()
                     error.backward()
                     self.optimizer_G.step()
 
