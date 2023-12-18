@@ -21,16 +21,20 @@ def run(run_id=232, finetune1_epochs=5, finetune2_epochs=5, cycles=10, load_ense
     config.load_ensemble_model = load_ensemble_model
     dataset_io = Dataset(config.target_var)
     # dataset_io = Dataset("default")
-    M = model.Net()
-    D = model.D()
-    if config.load_ensemble_model:
-        print("Loading ensemble model...")
-        T.load_model(config.ensemble_path)
-    M = model.prep_model(M)
-    D = model.prep_model(D)
-    T = train.Trainer(dataset_io, M, D)
     config.ensemble_path = config.experiments_dir + f"{(run_id - 100):03d}/finetune2.pth"
     if config.load_ensemble_model:
+        print("Loading ensemble model...")
+        for config.domain_backprop in [False, True]:
+            M = model.Net()
+            D = model.D()
+            M = model.prep_model(M)
+            D = model.prep_model(D)
+            T = train.Trainer(dataset_io, M, D)
+            try:
+                T.load_model(config.ensemble_path)
+            except RuntimeError:
+                continue
+            break
         PSNR, _ = T.inference(write_to_file=False)
         T.save_plot()
         print(f"Baseline PSNR: {PSNR}")
