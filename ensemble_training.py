@@ -33,11 +33,11 @@ def ensemble_training(run_id=130, finetune1_epochs=5, finetune2_epochs=5, ensemb
         #
         #     T = train.Trainer(datasets[var], M, D)
         #     _, _, _, M, D = T.train(disable_jump=True)
-        _, _, _, M, D = train.Trainer(mixed_dataset, M, D).train(disable_jump=True)
+        _, _, _, M, D = train.Trainer(mixed_dataset, M, D).train(disable_jump=True if cycle > 0 else False)
         end_time = time.time()
         print(f"Training Time cost: {end_time - start_time}")
         print("Evaluating...")
-        T = train.Trainer(datasets["640"], M, D)
+        T = train.Trainer(datasets[config.target_var], M, D)
         PSNR, _ = T.inference(write_to_file=True, disable_jump=True)
         config.log({"PSNR": PSNR})
         T.save_plot()

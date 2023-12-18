@@ -45,16 +45,15 @@ class Dataset:
             self.train_splice = [i for i in range(0, self.total_samples * config.train_data_split // 100)]
 
     def prepare_data(self):
-        print("Processing Data...")
         source_data = []
-        for i in tqdm(range(1, self.total_samples + 1),leave=False):
+        for i in tqdm(range(1, self.total_samples + 1),leave=False,desc=f"Reading data {self.dataset}-{self.selected_var}"):
             data = np.fromfile(f"{self.var_dir}{self.dataset}-{self.selected_var}-{i}.raw", dtype='<f')
             source_data.append(data)
         source_data = np.asarray(source_data)
         data_max = np.max(source_data)
         data_min = np.min(source_data)
         source_data = 2 * (source_data - data_min) / (data_max - data_min) - 1
-        for i in tqdm(range(self.total_samples)):
+        for i in tqdm(range(self.total_samples),desc=f"Writing to files",leave=False):
             data = source_data[i]
             data = data.reshape(self.dims[2], self.dims[1], self.dims[0]).transpose()
             hi_ = data
@@ -79,8 +78,7 @@ class Dataset:
             return
         if not self.check_processed_data():
             self.prepare_data()
-        print(f"Loading {self.dataset} {self.selected_var}...")
-        for i in tqdm(range(1, self.total_samples + 1)):
+        for i in tqdm(range(1, self.total_samples + 1), desc=f"Loading {self.dataset}-{self.selected_var}",leave=False):
             hi_ = np.fromfile(f'{self.hi_res_data_dir}{self.dataset}-{self.selected_var}-{i}.raw', dtype='<f')
             hi_ = hi_.reshape(self.dims[2], self.dims[1], self.dims[0]).transpose()
             lo_ = np.fromfile(f'{self.lo_res_data_dir}{self.dataset}-{self.selected_var}-{i}.raw', dtype='<f')

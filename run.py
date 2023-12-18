@@ -5,7 +5,7 @@ import train
 import fire
 
 
-def run(run_id=103, finetune1_epochs=10, finetune2_epochs=0, cycles=1, load_ensemble_model=False, tag="run"):
+def run(run_id=100, finetune1_epochs=10, finetune2_epochs=0, cycles=1, load_ensemble_model=False, tag="run"):
     print(f"Running {tag} {run_id}...")
     if tag == "run":
         config.lr = (1e-4, 4e-4)
@@ -19,7 +19,7 @@ def run(run_id=103, finetune1_epochs=10, finetune2_epochs=0, cycles=1, load_ense
     config.finetune1_epochs = finetune1_epochs
     config.finetune2_epochs = finetune2_epochs
     config.load_ensemble_model = load_ensemble_model
-    dataset_io = Dataset("640")
+    dataset_io = Dataset(config.target_var)
     # dataset_io = Dataset("default")
     M = model.Net()
     D = model.D()

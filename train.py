@@ -82,10 +82,10 @@ class Trainer:
                         domain_loss = (config.interval + 2) * self.domain_criterion(domain_class, domain_label) / 10
                         domain_total_loss += domain_loss.mean().item()
                         error += domain_loss
-                        domain_acc += torch.sum(torch.argmax(domain_class, dim=1) == torch.argmax(domain_label,dim=1))
+                        domain_acc += torch.sum(torch.argmax(domain_class, dim=1) == torch.argmax(domain_label,dim=1)).mean().item()
                     error.backward()
                     self.optimizer_G.step()
-                domain_acc = (domain_acc / (len(train_loader) * config.batch_size)).mean().item()
+                domain_acc = domain_acc / (len(train_loader) * config.batch_size)
                 finetune1_logs["loss"].append(loss_mse)
                 finetune1_logs["domain_loss"].append(domain_total_loss)
                 finetune1_logs["domain_accuracy"].append(domain_acc)
@@ -154,13 +154,13 @@ class Trainer:
                         domain_loss = (config.interval + 2) * self.domain_criterion(domain_class, domain_label) / 10
                         domain_total_loss += domain_loss.mean().item()
                         error += domain_loss
-                        domain_acc += torch.sum(torch.argmax(domain_class, dim=1) == torch.argmax(domain_label,dim=1))
+                        domain_acc += torch.sum(torch.argmax(domain_class, dim=1) == torch.argmax(domain_label,dim=1)).mean().item()
                     error.backward()
                     self.optimizer_G.step()
 
                     for p in self.discriminator.parameters():
                         p.requires_grad = True
-                domain_acc = (domain_acc / (len(train_loader) * config.batch_size)).mean().item()
+                domain_acc = domain_acc / (len(train_loader) * config.batch_size)
                 finetune2_logs["generator_loss"].append(generator_loss)
                 finetune2_logs["discriminator_loss"].append(discriminator_loss)
                 finetune2_logs["domain_loss"].append(domain_total_loss)
@@ -229,8 +229,8 @@ class Trainer:
     def psnr(self):
         print("=======Evaluating========")
         PSNR_list = []
-        for ind, GT in enumerate(tqdm(self.dataset.hi_res)):
-            cmp = self.predict_data[ind]
+        for ind, cmp in enumerate(tqdm(self.predict_data)):
+            GT = self.dataset.hi_res[ind]
             GT = GT.flatten('F')
             GT_range = GT.max() - GT.min()
             MSE = np.mean((GT - cmp) ** 2)

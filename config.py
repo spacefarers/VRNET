@@ -4,7 +4,6 @@ import wandb
 import os
 import numpy as np
 
-use_wandb = False
 domain_backprop = False
 
 os.environ["WANDB_SILENT"] = "true"
@@ -15,6 +14,7 @@ dataset = 'hurricane'
 # dataset = 'half-cylinder'
 
 
+use_wandb = False
 if torch.cuda.is_available():
     device = torch.device('cuda')
     batch_size = torch.cuda.device_count()
@@ -37,6 +37,10 @@ elif 'MacBook' in machine or 'mbp' in machine:
     root_data_dir = '/Users/spacefarers/data/'
     experiments_dir = '/Users/spacefarers/experiments/'
     processed_dir = '/Users/spacefarers/data/processed_data/'
+elif 'HomePC' in machine:
+    root_data_dir = '/mnt/c/Users/spacefarers/data/'
+    experiments_dir = '/mnt/c/Users/spacefarers/experiments/'
+    processed_dir = '/mnt/c/Users/spacefarers/data/processed_data/'
 else:
     raise Exception("Unknown machine")
 
