@@ -131,7 +131,7 @@ class Dataset:
         lo_res_full = torch.FloatTensor(lo_res_full)
         hi_res_full = torch.FloatTensor(hi_res_full)
         # domain label repeat self.selected_var num_windows*crop_times times
-        domain_label = torch.LongTensor(np.repeat(config.pretrain_vars.index(self.selected_var), num_windows * self.crop_times))
+        domain_label = torch.LongTensor(np.repeat(config.pretrain_vars.index(self.selected_var) if config.domain_backprop and 'ensemble_training' in config.tags else 0, num_windows * self.crop_times))
         data = torch.utils.data.TensorDataset(lo_res_start, lo_res_end, lo_res_full, hi_res_full, domain_label)
         train_loader = DataLoader(dataset=data, batch_size=self.batch_size, shuffle=True)
         return train_loader
