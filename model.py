@@ -349,7 +349,7 @@ class Net(nn.Module):
             features.append(self.t._modules['temporal' + str(k + 1)](torch.cat((s, e), dim=1)))
         features.append(self.s(e))
         domain_output = None
-        if config.domain_backprop:
+        if self.training and config.domain_backprop:
             reverse_features = [ReverseLayerF.apply(i, alpha).unsqueeze(1) for i in features]
             domain_output = self.domain_classifier(torch.cat(reverse_features, dim=1))
         output = torch.cat([self.upscaler(i) for i in features], dim=1)
