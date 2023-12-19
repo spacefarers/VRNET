@@ -1,6 +1,6 @@
 #!/bin/bash
 # -M michael@yangm.tech
-#$ -q gpu@qa-p100-* -l gpu=2
+#$ -q gpu@qa-v100-* -l gpu=2
 
 fsync $SGE_STDOUT_PATH &
 
