@@ -11,14 +11,14 @@ os.environ["WANDB_SILENT"] = "true"
 machine = platform.node()
 
 
-# dataset = 'half-cylinder'
-dataset = 'hurricane'
-#
-# pretrain_vars = ["160", "320", "6400"]
-pretrain_vars = ["RAIN", "WSMAG"]
-#
-# target_var = "640"
-target_var = "VAPOR"
+dataset = 'half-cylinder'
+# dataset = 'hurricane'
+
+pretrain_vars = ["160", "320", "6400"]
+# pretrain_vars = ["RAIN", "WSMAG"]
+
+target_var = "640"
+# target_var = "VAPOR"
 
 use_wandb = False
 if torch.cuda.is_available():

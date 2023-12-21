@@ -361,3 +361,8 @@ def prep_model(model):
     model = nn.DataParallel(model)
     model.apply(weights_init_kaiming)
     return model
+
+class MetaClassifier(nn.Module):
+    def __init__(self, models):
+        super(MetaClassifier, self).__init__()
+        self.models = models
