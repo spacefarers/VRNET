@@ -7,7 +7,7 @@ import json
 from fire import Fire
 
 
-def ensemble_training(run_id=132, finetune1_epochs=5, finetune2_epochs=5, ensemble_epochs=15):
+def ensemble_learning(run_id=132, finetune1_epochs=5, finetune2_epochs=5, ensemble_epochs=15):
     print(f"Running ensemble training {run_id}...")
     config.tags.append("ensemble_training")
     config.run_id = run_id
