@@ -15,7 +15,7 @@ def ensemble_training(run_id=134, finetune1_epochs=5, finetune2_epochs=5, ensemb
     config.finetune2_epochs = finetune2_epochs
     config.domain_backprop = domain_backprop
     datasets = {}
-    config.lr = (1e-7, 4e-7)
+    config.lr = (1e-5, 4e-5)
     for var in (config.pretrain_vars + [config.target_var]):
         dataset_io = Dataset(var,train_all_data=True)
         datasets[var] = dataset_io
