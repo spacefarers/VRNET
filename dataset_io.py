@@ -95,8 +95,8 @@ class Dataset:
             low_res_full.append(low_res_cut)
             high_res_full.append(high_res_cut)
         data = torch.utils.data.TensorDataset(torch.FloatTensor(low_res_full), torch.FloatTensor(high_res_full))
-        inference_loader = DataLoader(dataset=data, batch_size=self.batch_size)
-        return inference_loader
+        raw_loader = DataLoader(dataset=data, batch_size=self.batch_size)
+        return raw_loader
     def get_augmented_data(self):
         self.load()
         num_windows = len(self.splice_strategy) - config.interval - 1

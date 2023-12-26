@@ -5,10 +5,10 @@ import train
 import fire
 
 
-def run(run_id=500, iters=20, tag="TTrA"):
+def TaskTrAdaboost(run_id=500, iters=20, tag="TTrA"):
     print(f"Running {tag} {run_id}...")
     config.run_id = run_id
-    dataset_io = Dataset(config.target_var)
+    dataset_io = Dataset(config.dataset,config.target_var)
     # dataset_io = Dataset("default")
     config.ensemble_path = config.experiments_dir + f"{(run_id - 100):03d}/finetune2.pth"
     if config.load_ensemble_model:
