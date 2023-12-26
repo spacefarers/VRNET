@@ -41,8 +41,8 @@ class Dataset:
         else:
             raise ValueError("Invalid splice strategy")
 
-        self.high_res = [None] * self.total_samples
-        self.low_res = [None] * self.total_samples
+        self.high_res = None
+        self.low_res = None
 
     def prepare_data(self):
         source_data = []
@@ -72,8 +72,10 @@ class Dataset:
         return True
 
     def load(self):
-        if self.high_res!=[None]*self.total_samples:
+        if type(self.high_res) == np.ndarray and type(self.low_res) == np.ndarray:
             return
+        self.high_res = []
+        self.low_res = []
         if not self.check_processed_data():
             self.prepare_data()
         for i in tqdm(self.splice_strategy, leave=False, desc=f"Loading data {self.dataset}-{self.selected_var}"):
@@ -81,21 +83,25 @@ class Dataset:
             hi_ = hi_.reshape(self.dims[2], self.dims[1], self.dims[0]).transpose()
             lo_ = np.fromfile(f'{self.lo_res_data_dir}{self.dataset}-{self.selected_var}-{i + 1}.raw', dtype='<f')
             lo_ = lo_.reshape(self.dims[2] // config.scale, self.dims[1] // config.scale, self.dims[0] // config.scale).transpose()
-            self.high_res[i] = hi_
-            self.low_res[i] = lo_
+            self.high_res.append(hi_)
+            self.low_res.append(lo_)
+        self.high_res = np.array(self.high_res)
+        self.low_res = np.array(self.low_res)
 
     def get_raw_data(self):
         self.load()
         interval_splice = list(range(0, self.total_samples, config.interval + 1))
         low_res_full = []
         high_res_full = []
-        for i in interval_splice:
+        for i in interval_splice[:-1]:
             low_res_cut = np.take(self.low_res, range(i, i + config.interval + 2), axis=0)
             high_res_cut = np.take(self.high_res, range(i, i + config.interval + 2), axis=0)
             low_res_full.append(low_res_cut)
             high_res_full.append(high_res_cut)
-        data = torch.utils.data.TensorDataset(torch.FloatTensor(low_res_full), torch.FloatTensor(high_res_full))
-        raw_loader = DataLoader(dataset=data, batch_size=self.batch_size)
+        low_res_full = torch.from_numpy(np.array(low_res_full))
+        high_res_full = torch.from_numpy(np.array(high_res_full))
+        data = torch.utils.data.TensorDataset(low_res_full, high_res_full)
+        raw_loader = DataLoader(dataset=data, batch_size=config.batch_size)
         return raw_loader
     def get_augmented_data(self):
         self.load()

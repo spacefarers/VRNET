@@ -9,7 +9,6 @@ import time
 import config
 import wandb
 from torch.nn import functional as F
-from dataset_io import Dataset, MixedDataset
 
 
 class Trainer:
@@ -62,17 +61,18 @@ class Trainer:
             finetune1_logs = {"loss": [], "domain_loss": [], "domain_accuracy": []}
             config.log({"status": 1})
             for epoch in tqdm(range(1, config.finetune1_epochs + 1), position=0):
-                train_loader = self.dataset.get_data("train")
+                train_loader = self.dataset.get_augmented_data()
                 loss_mse = 0
                 domain_total_loss = 0
                 domain_acc = 0
                 for batch_idx, (low_res_crops, high_res_crops, domain_label) in enumerate(tqdm(train_loader, position=1, leave=False)):
                     p = float((batch_idx + epoch * len(train_loader)) / (config.finetune1_epochs * len(train_loader)))
                     alpha = 2. / (1. + np.exp(-10 * p)) - 1
-                    low_res_crops
-                    high, domain_class = self.model(ls, le, alpha)
+                    low_res_crops = low_res_crops.to(config.device)
+                    high_res_crops = high_res_crops.to(config.device)
+                    high, domain_class = self.model(low_res_crops[:,0:1], low_res_crops[:,-1:], alpha)
                     self.optimizer_G.zero_grad()
-                    error = (config.interval + 2) * self.criterion(high, hi)
+                    error = (config.interval + 2) * self.criterion(high, high_res_crops)
                     loss_mse += error.mean().item()
                     if "ensemble_training" in config.tags and config.domain_backprop:
                         domain_label = F.one_hot(domain_label, num_classes=len(config.pretrain_vars)).float().to(config.device)
@@ -83,15 +83,16 @@ class Trainer:
                     error.backward()
                     self.optimizer_G.step()
                 domain_acc /= (len(train_loader) * config.batch_size)
+                if "ensemble_training" in config.tags and config.domain_backprop:
+                    finetune1_logs["domain_loss"].append(domain_total_loss)
+                    finetune1_logs["domain_accuracy"].append(domain_acc)
+                    tqdm.write(f'FT1 domain loss: {domain_total_loss}')
+                    tqdm.write(f'FT1 domain accuracy: {domain_acc*100:.2f}%')
+                    config.log({"FT1 domain loss": domain_total_loss})
+                    config.log({"FT1 domain accuracy": domain_acc*100})
                 finetune1_logs["loss"].append(loss_mse)
-                finetune1_logs["domain_loss"].append(domain_total_loss)
-                finetune1_logs["domain_accuracy"].append(domain_acc)
                 tqdm.write(f'FT1 loss: {loss_mse}')
-                tqdm.write(f'FT1 domain loss: {domain_total_loss}')
-                tqdm.write(f'FT1 domain accuracy: {domain_acc*100:.2f}%')
                 config.log({"FT1 loss": loss_mse})
-                config.log({"FT1 domain loss": domain_total_loss})
-                config.log({"FT1 domain accuracy": domain_acc*100})
             time_end = time.time()
             finetune1_time_cost = time_end - time_start
             print('FT1 time cost', finetune1_time_cost, 's')
@@ -106,26 +107,26 @@ class Trainer:
             finetune2_logs = {"generator_loss": [], "discriminator_loss": [], "domain_loss": []}
             config.log({"status": 2})
             for epoch in tqdm(range(1, config.finetune2_epochs + 1), position=0):
-                train_loader = self.dataset.get_data("train")
+                train_loader = self.dataset.get_augmented_data()
                 generator_loss = 0
                 discriminator_loss = 0
                 domain_total_loss = 0
                 domain_acc = 0
-                for batch_idx, (ls, le, li, hi, domain_label) in enumerate(tqdm(train_loader, position=1, leave=False)):
+                for batch_idx, (low_res_crops, high_res_crops, domain_label) in enumerate(tqdm(train_loader, position=1, leave=False)):
                     p = float((batch_idx + epoch * len(train_loader)) / (config.finetune2_epochs * len(train_loader)))
                     alpha = 2. / (1. + np.exp(-10 * p)) - 1
-                    ls = ls.to(config.device)
-                    le = le.to(config.device)
-                    hi = hi.to(config.device)
+
+                    low_res_crops = low_res_crops.to(config.device)
+                    high_res_crops = high_res_crops.to(config.device)
 
                     for p in self.model.parameters():
                         p.requires_grad = False
 
                     self.optimizer_D.zero_grad()
-                    output_real = self.discriminator(hi)
+                    output_real = self.discriminator(high_res_crops)
                     label_real = torch.ones(output_real.size()).to(config.device)
                     real_loss = self.criterion(output_real, label_real)
-                    fake_data, _ = self.model(ls, le, alpha)
+                    fake_data, _ = self.model(low_res_crops[:][0:1], low_res_crops[:][-1:], alpha)
                     label_fake = torch.zeros(output_real.size()).to(config.device)
                     output_fake = self.discriminator(fake_data)
                     fake_loss = self.criterion(output_fake, label_fake)
@@ -139,12 +140,12 @@ class Trainer:
                     for p in self.discriminator.parameters():
                         p.requires_grad = False
 
-                    high, domain_class = self.model(ls, le, alpha)
+                    high, domain_class = self.model(low_res_crops[:][0:1], low_res_crops[:][-1:], alpha)
                     output_real = self.discriminator(high)
                     self.optimizer_G.zero_grad()
                     label_real = torch.ones(output_real.size()).to(config.device)
                     real_loss = self.criterion(output_real, label_real)
-                    error = (config.interval + 2) * self.criterion(high, hi) + 1e-3 * real_loss
+                    error = (config.interval + 2) * self.criterion(high, high_res_crops) + 1e-3 * real_loss
                     generator_loss += error.mean().item()
                     if "ensemble_training" in config.tags and config.domain_backprop:
                         domain_label = F.one_hot(domain_label, num_classes=len(config.pretrain_vars)).float().to(config.device)
@@ -158,15 +159,16 @@ class Trainer:
                     for p in self.discriminator.parameters():
                         p.requires_grad = True
                 domain_acc /= (len(train_loader) * config.batch_size)
+                if "ensemble_training" in config.tags and config.domain_backprop:
+                    finetune2_logs["domain_loss"].append(domain_total_loss)
+                    config.log({"FT2 domain loss": domain_total_loss})
+                    config.log({"FT2 domain accuracy": domain_acc*100})
+                    tqdm.write(f'FT2 domain loss: {domain_total_loss}')
+                    tqdm.write(f'FT2 domain accuracy: {domain_acc*100:.2f}%')
                 finetune2_logs["generator_loss"].append(generator_loss)
                 finetune2_logs["discriminator_loss"].append(discriminator_loss)
-                finetune2_logs["domain_loss"].append(domain_total_loss)
                 tqdm.write(f'FT2 G loss: {generator_loss}, D loss: {discriminator_loss}')
-                tqdm.write(f'FT2 domain loss: {domain_total_loss}')
-                tqdm.write(f'FT2 domain accuracy: {domain_acc*100:.2f}%')
                 config.log({"FT2 G loss": generator_loss, "FT2 D loss": discriminator_loss})
-                config.log({"FT2 domain loss": domain_total_loss})
-                config.log({"FT2 domain accuracy": domain_acc*100})
             time_end = time.time()
             finetune2_time_cost = time_end - time_start
             print('FT2 time cost', finetune2_time_cost, 's')
