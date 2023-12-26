@@ -5,20 +5,9 @@ import train
 import fire
 
 
-def run(run_id=232, finetune1_epochs=5, finetune2_epochs=5, cycles=10, load_ensemble_model=True, tag="EN-FT"):
+def run(run_id=500, iters=20, tag="TTrA"):
     print(f"Running {tag} {run_id}...")
-    if tag == "run":
-        config.lr = (1e-4, 4e-4)
-        config.tags.append("barebone" if cycles == 1 else "cycles")
-    elif tag == "EN-FT":
-        config.lr = (1e-6, 4e-6)
-        config.tags.append("EN-FT")
-    else:
-        raise Exception("Unknown tag")
     config.run_id = run_id
-    config.finetune1_epochs = finetune1_epochs
-    config.finetune2_epochs = finetune2_epochs
-    config.load_ensemble_model = load_ensemble_model
     dataset_io = Dataset(config.target_var)
     # dataset_io = Dataset("default")
     config.ensemble_path = config.experiments_dir + f"{(run_id - 100):03d}/finetune2.pth"

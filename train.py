@@ -7,7 +7,6 @@ from pathlib import Path
 import json
 import time
 import config
-from matplotlib import pyplot as plt
 import wandb
 from torch.nn import functional as F
 from dataset_io import Dataset, MixedDataset
@@ -67,12 +66,10 @@ class Trainer:
                 loss_mse = 0
                 domain_total_loss = 0
                 domain_acc = 0
-                for batch_idx, (ls, le, li, hi, domain_label) in enumerate(tqdm(train_loader, position=1, leave=False)):
+                for batch_idx, (low_res_crops, high_res_crops, domain_label) in enumerate(tqdm(train_loader, position=1, leave=False)):
                     p = float((batch_idx + epoch * len(train_loader)) / (config.finetune1_epochs * len(train_loader)))
                     alpha = 2. / (1. + np.exp(-10 * p)) - 1
-                    ls = ls.to(config.device)
-                    le = le.to(config.device)
-                    hi = hi.to(config.device)
+                    low_res_crops
                     high, domain_class = self.model(ls, le, alpha)
                     self.optimizer_G.zero_grad()
                     error = (config.interval + 2) * self.criterion(high, hi)
@@ -179,86 +176,3 @@ class Trainer:
             torch.cuda.empty_cache()
         return pretrain_time_cost, finetune1_time_cost, finetune2_time_cost, self.model, self.discriminator
 
-    def inference(self, load_model=None, write_to_file=True, disable_jump=False):
-        assert type(self.dataset) == Dataset, "Only support single dataset inference"
-        self.predict_data = []
-        if write_to_file:
-            Path(self.inference_dir).mkdir(parents=True, exist_ok=True)
-            if not disable_jump:
-                if os.path.exists(self.experiment_dir + '/inference.json'):
-                    with open(self.experiment_dir + '/inference.json', 'r') as f:
-                        inference_logs = json.load(f)
-                        self.inference_logs = inference_logs
-                        return inference_logs["PSNR"], inference_logs["PSNR_list"]
-        self.model.eval()
-        if load_model:
-            self.load_model(self.experiment_dir + f'/{load_model}.pth')
-        print('=======Inference========')
-        config.log({"status": 3})
-        start_time = time.time()
-        lo_res_interval_loader = self.dataset.get_data("inference")
-        for ind, (ls, le) in enumerate(tqdm(lo_res_interval_loader)):
-            ls = ls.to(config.device)
-            le = le.to(config.device)
-            ls = ls.unsqueeze(1)
-            le = le.unsqueeze(1)
-            with torch.no_grad():
-                pred, _ = self.model(ls, le)
-                pred = pred.detach().cpu().numpy()
-                for b in range(pred.shape[0]):
-                    for j in range(0 if b + ind == 0 else 1, self.interval + 2):
-                        data = pred[b][j]
-                        data = np.asarray(data, dtype='<f')
-                        data = data.flatten('F')
-                        if write_to_file:
-                            data.tofile(
-                                f'{self.inference_dir}{self.dataset.dataset}-{self.dataset.selected_var}-{ind * config.batch_size * (self.interval + 1) + b * (self.interval + 1) + j + 1}.raw',
-                                format='<f')
-                        self.predict_data.append(data)
-        end_time = time.time()
-        time_cost = end_time - start_time
-        print('Inference time cost', time_cost, 's')
-        PSNR, PSNR_list = self.psnr()
-        inference_logs = {"time_cost": time_cost, "PSNR": PSNR, "PSNR_list": PSNR_list}
-        self.inference_logs = inference_logs
-        if write_to_file:
-            with open(self.experiment_dir + '/inference.json', 'w') as f:
-                json.dump(inference_logs, f, indent=4)
-        return PSNR, PSNR_list
-
-    def psnr(self):
-        print("=======Evaluating========")
-        PSNR_list = []
-        for ind, cmp in enumerate(tqdm(self.predict_data)):
-            GT = self.dataset.hi_res[ind]
-            GT = GT.flatten('F')
-            GT_range = GT.max() - GT.min()
-            MSE = np.mean((GT - cmp) ** 2)
-            PSNR = 20 * np.log10(GT_range) - 10 * np.log10(MSE)
-            PSNR_list.append(PSNR)
-        print(f"PSNR is {np.mean(PSNR_list)}")
-        print(f"array:\n {PSNR_list}")
-        return np.mean(PSNR_list), PSNR_list
-
-    def save_plot(self):
-        if self.ensemble_iter is not None:
-            desc = f'#{config.run_id}{f" E.{self.ensemble_iter}"}: {config.dataset} {self.dataset.selected_var} PSNR'
-            name = f'PSNR-E.{self.ensemble_iter}'
-        elif self.run_cycle is not None:
-            desc = f'#{config.run_id}{f" C.{self.run_cycle}"}: {config.dataset} {self.dataset.selected_var} PSNR'
-            name = f'PSNR-C.{self.run_cycle}'
-        else:
-            desc = f'#{config.run_id}: {config.dataset} {self.dataset.selected_var} PSNR'
-            name = 'PSNR'
-        x = self.inference_logs["PSNR_list"]
-        plt.clf()
-        axes = plt.gca()
-        axes.set_ylim([0, np.max(x) + 5])
-        plt.plot(x)
-        plt.axhline(y=self.inference_logs["PSNR"], color='r', linestyle='--')
-        plt.xlabel('Frame')
-        plt.ylabel('PSNR')
-        plt.title(desc)
-        plt.yticks(list(plt.yticks()[0]) + [self.inference_logs["PSNR"]])
-        plt.savefig(self.experiment_dir + f'/{name}.png', dpi=300)
-        config.log({name: wandb.Image(self.experiment_dir + f'/{name}.png', caption=f'{desc}')})

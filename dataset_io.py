@@ -10,12 +10,9 @@ import config
 
 
 class Dataset:
-    def __init__(self, selected_var, train_all_data=False):
-        self.dataset = config.dataset
-        self.root_data_dir = config.root_data_dir
+    def __init__(self, dataset, selected_var, splice_strategy):
+        self.dataset = dataset
         self.selected_var = selected_var
-        self.batch_size = config.batch_size
-        self.interval = config.interval
         self.hi_res_data_dir = os.path.join(config.processed_dir, self.dataset, self.selected_var,
                                             'high_res/')
         self.lo_res_data_dir = os.path.join(config.processed_dir, self.dataset, self.selected_var,
@@ -23,7 +20,7 @@ class Dataset:
         Path(self.hi_res_data_dir).mkdir(parents=True, exist_ok=True)
         Path(self.lo_res_data_dir).mkdir(parents=True, exist_ok=True)
 
-        self.data_dir = self.root_data_dir + self.dataset + '/'
+        self.data_dir = config.root_data_dir + self.dataset + '/'
         self.dataset_json = self.data_dir + 'dataset.json'
         assert os.path.exists(self.dataset_json), "dataset.json does not exist at {}".format(self.dataset_json)
         self.json_data = json.load(open(self.dataset_json))
@@ -32,32 +29,35 @@ class Dataset:
         self.total_samples = self.json_data['total_samples']
         assert self.selected_var in self.vars, "selected_var {} not in vars {}".format(self.selected_var, self.vars)
         self.var_dir = self.data_dir + self.selected_var + '/'
-        self.scale = config.scale
-        self.crop_size = config.crop_size
-        self.crop_times = config.crop_times
 
         self.hi_res = []
         self.low_res = []
-        self.interval_splice = [i for i in range(0, self.total_samples, self.interval + 1)]
-        if train_all_data:
-            self.train_splice = [i for i in range(0, self.total_samples)]
+        train_splice = list(range(0, self.total_samples * config.train_data_split // 100))
+        all_splice = list(range(self.total_samples))
+        if splice_strategy == "train":
+            self.splice_strategy = train_splice
+        elif splice_strategy == "all":
+            self.splice_strategy = all_splice
         else:
-            self.train_splice = [i for i in range(0, self.total_samples * config.train_data_split // 100)]
+            raise ValueError("Invalid splice strategy")
+
+        self.high_res = [None] * self.total_samples
+        self.low_res = [None] * self.total_samples
 
     def prepare_data(self):
         source_data = []
-        for i in tqdm(range(1, self.total_samples + 1),leave=False,desc=f"Reading data {self.dataset}-{self.selected_var}"):
+        for i in tqdm(range(1, self.total_samples + 1), leave=False, desc=f"Reading data {self.dataset}-{self.selected_var}"):
             data = np.fromfile(f"{self.var_dir}{self.dataset}-{self.selected_var}-{i}.raw", dtype='<f')
             source_data.append(data)
         source_data = np.asarray(source_data)
         data_max = np.max(source_data)
         data_min = np.min(source_data)
         source_data = 2 * (source_data - data_min) / (data_max - data_min) - 1
-        for i in tqdm(range(self.total_samples),desc=f"Writing to files",leave=False):
+        for i in tqdm(range(self.total_samples), desc=f"Writing to files", leave=False):
             data = source_data[i]
             data = data.reshape(self.dims[2], self.dims[1], self.dims[0]).transpose()
             hi_ = data
-            data = resize(data, (self.dims[0] // self.scale, self.dims[1] // self.scale, self.dims[2] // self.scale),
+            data = resize(data, (self.dims[0] // config.scale, self.dims[1] // config.scale, self.dims[2] // config.scale),
                           order=3)
             lo_ = data
             hi_ = hi_.flatten('F')
@@ -67,97 +67,75 @@ class Dataset:
 
     def check_processed_data(self):
         for i in range(1, self.total_samples + 1):
-            if not os.path.exists(
-                    f'{self.hi_res_data_dir}{self.dataset}-{self.selected_var}-{i}.raw') or not os.path.exists(
-                f'{self.lo_res_data_dir}{self.dataset}-{self.selected_var}-{i}.raw'):
+            if not os.path.exists(f'{self.hi_res_data_dir}{self.dataset}-{self.selected_var}-{i}.raw') or not os.path.exists(f'{self.lo_res_data_dir}{self.dataset}-{self.selected_var}-{i}.raw'):
                 return False
         return True
 
     def load(self):
-        if len(self.hi_res) != 0:
+        if self.high_res!=[None]*self.total_samples:
             return
         if not self.check_processed_data():
             self.prepare_data()
-        for i in tqdm(range(1, self.total_samples + 1), desc=f"Loading {self.dataset}-{self.selected_var}",leave=False):
-            hi_ = np.fromfile(f'{self.hi_res_data_dir}{self.dataset}-{self.selected_var}-{i}.raw', dtype='<f')
+        for i in tqdm(self.splice_strategy, leave=False, desc=f"Loading data {self.dataset}-{self.selected_var}"):
+            hi_ = np.fromfile(f'{self.hi_res_data_dir}{self.dataset}-{self.selected_var}-{i + 1}.raw', dtype='<f')
             hi_ = hi_.reshape(self.dims[2], self.dims[1], self.dims[0]).transpose()
-            lo_ = np.fromfile(f'{self.lo_res_data_dir}{self.dataset}-{self.selected_var}-{i}.raw', dtype='<f')
-            lo_ = lo_.reshape(self.dims[2] // self.scale, self.dims[1] // self.scale,
-                              self.dims[0] // self.scale).transpose()
-            self.hi_res.append(hi_)
-            self.low_res.append(lo_)
-        self.hi_res = np.asarray(self.hi_res)
-        self.low_res = np.asarray(self.low_res)
+            lo_ = np.fromfile(f'{self.lo_res_data_dir}{self.dataset}-{self.selected_var}-{i + 1}.raw', dtype='<f')
+            lo_ = lo_.reshape(self.dims[2] // config.scale, self.dims[1] // config.scale, self.dims[0] // config.scale).transpose()
+            self.high_res[i] = hi_
+            self.low_res[i] = lo_
 
-    def get_data(self, splice_strategy):
+    def get_raw_data(self):
         self.load()
-        if splice_strategy == "interval":
-            splice_strategy = self.interval_splice
-        elif splice_strategy == "train":
-            splice_strategy = self.train_splice
-        elif splice_strategy == "inference":
-            lo_res_start = torch.FloatTensor(np.take(self.low_res, self.interval_splice[:-1], axis=0))
-            lo_res_end = torch.FloatTensor(np.take(self.low_res, self.interval_splice[1:], axis=0))
-            data = torch.utils.data.TensorDataset(lo_res_start, lo_res_end)
-            inference_loader = DataLoader(dataset=data, batch_size=self.batch_size, shuffle=False)
-            return inference_loader
-        else:
-            raise ValueError("Invalid splice strategy")
-        num_windows = len(splice_strategy) - self.interval - 1
-        lo_res_start = np.zeros(
-            (self.crop_times * num_windows, 1, self.crop_size[0], self.crop_size[1], self.crop_size[2]))
-        lo_res_end = np.zeros(
-            (self.crop_times * num_windows, 1, self.crop_size[0], self.crop_size[1], self.crop_size[2]))
-        lo_res_full = np.zeros(
-            (self.crop_times * num_windows, self.interval + 2, self.crop_size[0], self.crop_size[1], self.crop_size[2]))
-        hi_res_full = np.zeros(
-            (
-                self.crop_times * num_windows, self.interval + 2, self.crop_size[0] * self.scale,
-                self.crop_size[1] * self.scale,
-                self.crop_size[2] * self.scale))
+        interval_splice = list(range(0, self.total_samples, config.interval + 1))
+        low_res_full = []
+        high_res_full = []
+        for i in interval_splice:
+            low_res_cut = np.take(self.low_res, range(i, i + config.interval + 2), axis=0)
+            high_res_cut = np.take(self.high_res, range(i, i + config.interval + 2), axis=0)
+            low_res_full.append(low_res_cut)
+            high_res_full.append(high_res_cut)
+        data = torch.utils.data.TensorDataset(torch.FloatTensor(low_res_full), torch.FloatTensor(high_res_full))
+        inference_loader = DataLoader(dataset=data, batch_size=self.batch_size)
+        return inference_loader
+    def get_augmented_data(self):
+        self.load()
+        num_windows = len(self.splice_strategy) - config.interval - 1
+        low_res_full = np.zeros((config.crop_times * num_windows, config.interval + 2, config.crop_size[0], config.crop_size[1], config.crop_size[2]))
+        high_res_full = np.zeros((
+                config.crop_times * num_windows, config.interval + 2, config.crop_size[0] * config.scale,
+                config.crop_size[1] * config.scale,
+                config.crop_size[2] * config.scale))
         idx = 0
         for t in range(num_windows):
-            ls_, le_, lf_, hf_ = self.random_crop_data(
-                np.take(self.low_res, splice_strategy[t:t + self.interval + 2], axis=0),
-                np.take(self.hi_res, splice_strategy[t:t + self.interval + 2], axis=0))
-            for j in range(0, self.crop_times):
-                lo_res_start[idx] = ls_[j]
-                lo_res_end[idx] = le_[j]
-                lo_res_full[idx] = lf_[j]
-                hi_res_full[idx] = hf_[j]
+            low_res_crop, high_res_crop = self.random_crop_data(
+                np.take(self.low_res, self.splice_strategy[t:t + config.interval + 2], axis=0),
+                np.take(self.high_res, self.splice_strategy[t:t + config.interval + 2], axis=0))
+            for j in range(0, config.crop_times):
+                low_res_full[idx] = low_res_crop[j]
+                high_res_full[idx] = high_res_crop[j]
                 idx += 1
-        lo_res_start = torch.FloatTensor(lo_res_start)
-        lo_res_end = torch.FloatTensor(lo_res_end)
-        lo_res_full = torch.FloatTensor(lo_res_full)
-        hi_res_full = torch.FloatTensor(hi_res_full)
+        low_res_full = torch.FloatTensor(low_res_full)
+        high_res_full = torch.FloatTensor(high_res_full)
         # domain label repeat self.selected_var num_windows*crop_times times
-        domain_label = torch.LongTensor(np.repeat(config.pretrain_vars.index(self.selected_var) if config.domain_backprop and 'ensemble_training' in config.tags else 0, num_windows * self.crop_times))
-        data = torch.utils.data.TensorDataset(lo_res_start, lo_res_end, lo_res_full, hi_res_full, domain_label)
-        train_loader = DataLoader(dataset=data, batch_size=self.batch_size, shuffle=True)
+        domain_label = torch.LongTensor(np.repeat(config.pretrain_vars.index(self.selected_var) if config.domain_backprop and 'ensemble_training' in config.tags else 0, num_windows * config.crop_times))
+        data = torch.utils.data.TensorDataset(low_res_full, high_res_full, domain_label)
+        train_loader = DataLoader(dataset=data, batch_size=config.batch_size, shuffle=True)
         return train_loader
 
     def random_crop_data(self, low_res_window, high_res_window):
-        hi = []
-        ls = []
-        le = []
-        li = []
-        for _ in range(self.crop_times):
-            x = np.random.randint(0, self.dims[0] // self.scale - self.crop_size[0])
-            y = np.random.randint(0, self.dims[1] // self.scale - self.crop_size[1])
-            z = np.random.randint(0, self.dims[2] // self.scale - self.crop_size[2])
+        low_res_crop = []
+        high_res_crop = []
+        for _ in range(config.crop_times):
+            x = np.random.randint(0, self.dims[0] // config.scale - config.crop_size[0])
+            y = np.random.randint(0, self.dims[1] // config.scale - config.crop_size[1])
+            z = np.random.randint(0, self.dims[2] // config.scale - config.crop_size[2])
 
-            ls_ = low_res_window[0:1, x:x + self.crop_size[0], y:y + self.crop_size[1], z:z + self.crop_size[2]]
-            le_ = low_res_window[self.interval + 1:self.interval + 2, x:x + self.crop_size[0], y:y + self.crop_size[1],
-                  z:z + self.crop_size[2]]
-            li_ = low_res_window[:, x:x + self.crop_size[0], y:y + self.crop_size[1], z:z + self.crop_size[2]]
-            hi_ = high_res_window[:, x * self.scale:(x + self.crop_size[0]) * self.scale,
-                  self.scale * y:(y + self.crop_size[1]) * self.scale,
-                  self.scale * z:(z + self.crop_size[2]) * self.scale]
-            ls.append(ls_)
-            hi.append(hi_)
-            li.append(li_)
-            le.append(le_)
-        return ls, le, li, hi
+            low_res_crop.append(low_res_window[:, x:x + config.crop_size[0], y:y + config.crop_size[1], z:z + config.crop_size[2]])
+            high_res_crop.append(high_res_window[:, x * config.scale:(x + config.crop_size[0]) * config.scale,
+                  config.scale * y:(y + config.crop_size[1]) * config.scale,
+                  config.scale * z:(z + config.crop_size[2]) * config.scale])
+        return low_res_crop, high_res_crop
+
 
 class MixedDataset:
     def __init__(self, datasets):
