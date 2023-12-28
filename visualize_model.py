@@ -12,10 +12,9 @@ config.tags.append("ensemble_training")
 # x = torch.randn(input_size)
 
 
-input_size = ((1, 1, 16, 16, 16), (1, 1, 16, 16, 16))
+input_size = ((1, 1, 160, 60, 20), (1, 1, 160, 60, 20))
 x = (torch.randn(input_size[0]), torch.randn(input_size[1]))
 
 model = Net()
-model.train()
 
-model_graph = draw_graph(model, input_data=x, expand_nested=True, save_graph=True, filename="DomainBackprop")
+model_graph = draw_graph(model, input_data=x, expand_nested=True, save_graph=True, filename="Model")

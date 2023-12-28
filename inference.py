@@ -4,7 +4,6 @@ import torch
 from tqdm import tqdm
 from pathlib import Path
 import json
-import os
 from matplotlib import pyplot as plt
 import numpy as np
 import wandb
@@ -51,6 +50,7 @@ def infer_and_evaluate(model, inference_dir=None, write_to_file=False, experimen
     if write_to_file:
         with open(experiments_dir + '/inference.json', 'w') as f:
             json.dump(inference_logs, f, indent=4)
+    print(f"PSNR: {PSNR}")
     return PSNR, PSNR_list
 
 
@@ -59,7 +59,7 @@ def save_plot(PSNR, PSNR_list, save_path, ensemble_iter=None, run_cycle=None):
         desc = f'#{config.run_id}{f" E.{ensemble_iter}"}: {config.dataset} {config.target_var} PSNR'
         name = f'PSNR-E.{ensemble_iter}'
     elif run_cycle is not None:
-        desc = f'#{config.run_id}{f" C.{self.run_cycle}"}: {config.dataset} {config.target_var} PSNR'
+        desc = f'#{config.run_id}{f" C.{run_cycle}"}: {config.dataset} {config.target_var} PSNR'
         name = f'PSNR-C.{run_cycle}'
     else:
         desc = f'#{config.run_id}: {config.dataset} {config.target_var} PSNR'

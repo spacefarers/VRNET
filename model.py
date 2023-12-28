@@ -363,6 +363,19 @@ def prep_model(model):
     return model
 
 class MetaClassifier(nn.Module):
-    def __init__(self, models):
+    def __init__(self, models:list[Net]):
         super(MetaClassifier, self).__init__()
         self.models = models
+        for model in models:
+            for p in model.parameters():
+                p.requires_grad = False
+        self.fc1 = nn.Linear(len(config.pretrain_vars), 256)
+        self.fc2 = nn.Linear(256,1)
+
+    def forward(self, s, e):
+        results = []
+        for ind, model in enumerate(self.models):
+            results.append(model(s,e).unsqueeze(0))
+        x = torch.cat(results,dim=0)
+
+
