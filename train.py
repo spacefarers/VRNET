@@ -180,4 +180,4 @@ class Trainer:
             finetune2_logs = self.finetune2()
             self.save_model('finetune2', finetune2_logs)
             print('FT2 time cost', finetune2_logs["time_cost"], 's')
-        return pretrain_time_cost, finetune1_time_cost, finetune2_time_cost, self.model, self.discriminator
+        return self.model, self.discriminator

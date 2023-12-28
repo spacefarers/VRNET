@@ -35,7 +35,7 @@ def ensemble_training(run_id=135, finetune1_epochs=5, finetune2_epochs=5, ensemb
         #
         #     T = train.Trainer(datasets[var], M, D)
         #     _, _, _, M, D = T.train(disable_jump=True)
-        _, _, _, M, D = train.Trainer(mixed_dataset, M, D).train(disable_jump=True if cycle > 0 else False)
+        M, D = train.Trainer(mixed_dataset, M, D).train(disable_jump=True if cycle > 0 else False)
         end_time = time.time()
         print(f"Training Time cost: {end_time - start_time}")
         print("Evaluating...")

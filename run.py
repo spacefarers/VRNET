@@ -32,8 +32,7 @@ def run(run_id=101, finetune1_epochs=10, finetune2_epochs=10, cycles=1, load_ens
     T = train.Trainer(dataset_io, M, D)
     for cycle in range(1, cycles + 1):
         print(f"Cycle {cycle}/{cycles}:")
-        pretrain_time_cost, finetune1_time_cost, finetune2_time_cost, _, _ = T.train(
-            disable_jump=True if cycle > 1 else False)
+        T.train(disable_jump=True if cycle > 1 else False)
         PSNR, PSNR_list = infer_and_evaluate(T.model, write_to_file=False if cycle != cycles else True, inference_dir=T.inference_dir, experiments_dir=T.experiment_dir)
         save_plot(PSNR, PSNR_list, T.experiment_dir, run_cycle=cycle)
         print(f"Cycle {cycle} PSNR: {PSNR}")
