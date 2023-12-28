@@ -90,11 +90,11 @@ class Trainer:
                     source_out_err = self.criterion(source_out, source_high)
                     source_label_err = self.domain_criterion(source_class, torch.ones(config.batch_size).to(config.device))
                     target_label_err = self.domain_criterion(target_class, torch.zeros(config.batch_size).to(config.device))
+                    source_out_loss += source_out_err.mean().item()
+                    source_label_loss += source_label_err.mean().item()
+                    target_out_loss += target_out_err.mean().item()
+                    target_label_loss += target_label_err.mean().item()
                 error = source_out_err + source_label_err + target_out_err + target_label_err
-                source_out_loss += source_out_err.mean().item()
-                source_label_loss += source_label_err.mean().item()
-                target_out_loss += target_out_err.mean().item()
-                target_label_loss += target_label_err.mean().item()
                 total_loss += error.mean().item()
                 # if "ensemble_training" in config.tags and config.domain_backprop:
                 #     domain_label = F.one_hot(domain_label, num_classes=len(config.pretrain_vars)).float().to(config.device)
