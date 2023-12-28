@@ -74,15 +74,14 @@ class Trainer:
                 self.optimizer_G.zero_grad()
                 p = float((batch_idx + epoch * train_length) / (config.finetune1_epochs * train_length))
                 alpha = 2. / (1. + np.exp(-10 * p)) - 1
+                source_out_err = source_label_err = target_label_err = 0
                 target_obj = next(target_iter)
                 target_low, target_high = target_obj
                 target_low = target_low.to(config.device)
                 target_high = target_high.to(config.device)
                 target_out, target_class = self.model(target_low[:, 0:1], target_low[:, -1:], alpha)
                 target_out_err = self.criterion(target_out, target_high)
-                target_label_err = self.domain_criterion(target_class, torch.zeros(config.batch_size).to(config.device))
                 source_obj = next(source_iter)
-                source_out_err = source_label_err = 0
                 if source_obj is not None:
                     source_low, source_high = source_obj
                     source_low = source_low.to(config.device)
@@ -90,6 +89,7 @@ class Trainer:
                     source_out, source_class = self.model(source_low[:, 0:1], source_low[:, -1:], alpha)
                     source_out_err = self.criterion(source_out, source_high)
                     source_label_err = self.domain_criterion(source_class, torch.ones(config.batch_size).to(config.device))
+                    target_label_err = self.domain_criterion(target_class, torch.zeros(config.batch_size).to(config.device))
                 error = source_out_err + source_label_err + target_out_err + target_label_err
                 source_out_loss += source_out_err.mean().item()
                 source_label_loss += source_label_err.mean().item()
