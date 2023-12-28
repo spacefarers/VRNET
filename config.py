@@ -11,7 +11,7 @@ machine = platform.node()
 
 
 dataset = "hurricane"
-target_var = "160"
+target_var = "RAIN"
 
 # dataset = 'half-cylinder'
 # source_dataset = 'hurricane'
