@@ -10,6 +10,6 @@
 
 conda activate ml
 
-python3 ../run.py --run_id=$SGE_TASK_ID --finetune1_epochs=0 --finetune2_epochs=5 --cycles=5
+python3 ../run.py --run_id=$SGE_TASK_ID --finetune1_epochs=20 --finetune2_epochs=0 --cycles=1
 
 # qsub -t 006-010 task.sh
