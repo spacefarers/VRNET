@@ -4,7 +4,6 @@ import wandb
 import os
 import numpy as np
 
-domain_backprop = False
 
 os.environ["WANDB_SILENT"] = "true"
 
@@ -12,11 +11,12 @@ machine = platform.node()
 
 
 dataset = 'half-cylinder'
-# dataset = 'hurricane'
+source_dataset = 'hurricane'
 
-pretrain_vars = ["160", "320", "6400"]
+# source_dataset = ["160", "320", "6400"]
 # pretrain_vars = ["RAIN", "WSMAG"]
 
+source_var = "RAIN"
 target_var = "640"
 # target_var = "VAPOR"
 
@@ -98,6 +98,7 @@ def init_wandb():
         tags=tags
     )
 
+domain_backprop = False
 
 def log(data):
     if not use_wandb:

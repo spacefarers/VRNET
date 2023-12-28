@@ -32,7 +32,7 @@ class Dataset:
 
         self.hi_res = []
         self.low_res = []
-        train_splice = list(range(0, self.total_samples * config.train_data_split // 100))
+        train_splice = list(range(0, 20))
         all_splice = list(range(self.total_samples))
         if splice_strategy == "train":
             self.splice_strategy = train_splice
@@ -123,8 +123,8 @@ class Dataset:
         low_res_full = torch.FloatTensor(low_res_full)
         high_res_full = torch.FloatTensor(high_res_full)
         # domain label repeat self.selected_var num_windows*crop_times times
-        domain_label = torch.LongTensor(np.repeat(config.pretrain_vars.index(self.selected_var) if config.domain_backprop and 'ensemble_training' in config.tags else 0, num_windows * config.crop_times))
-        data = torch.utils.data.TensorDataset(low_res_full, high_res_full, domain_label)
+        # domain_label = torch.LongTensor(np.repeat(config.pretrain_vars.index(self.selected_var) if config.domain_backprop and 'ensemble_training' in config.tags else 0, num_windows * config.crop_times))
+        data = torch.utils.data.TensorDataset(low_res_full, high_res_full)
         train_loader = DataLoader(dataset=data, batch_size=config.batch_size, shuffle=True)
         return train_loader
 

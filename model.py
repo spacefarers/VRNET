@@ -137,8 +137,9 @@ class D(nn.Module):
         for i in range(num):
             f = F.relu(self.conv1(x[:, i:i + 1, :, :, :, ]))
             f = F.relu(self.conv2(f))
-            h, c = self.lstm(f, h, c)
-            f = self.conv3(h)
+            # h, c = self.lstm(f, h, c)
+            # f = self.conv3(h)
+            f = self.conv3(f)
             f = F.avg_pool3d(f, f.size()[2:]).view(-1)
             comps.append(f)
         comps = torch.stack(comps)
@@ -296,9 +297,9 @@ class DomainClassifier(nn.Module):
         self.bn3 = nn.BatchNorm3d(512)
         self.lstm = LSTMCell(512, 512, 3)
         self.fc1 = nn.Linear(int(np.prod(config.crop_size)), 1024)
-        self.fc2 = nn.Linear(1024, len(config.pretrain_vars))
+        self.fc2 = nn.Linear(1024, 1) # choose between source and target
 
-    def forward(self, x): # x.shape: [batch_size, frames, 64, crop_size[0], crop_size[1], crop_size[2]]
+    def forward(self, x): # x.shape: [batch_size, frames: 4, 64, crop_size[0], crop_size[1], crop_size[2]]
         h = None
         c = None
         for t in range(x.shape[1]):
@@ -309,6 +310,7 @@ class DomainClassifier(nn.Module):
         x = h.view(h.size(0), -1)  # Flatten the tensor
         x = F.relu(self.fc1(x))
         x = self.fc2(x)
+        x = x.squeeze(1)
         return x
 
 

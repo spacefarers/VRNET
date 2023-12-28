@@ -10,6 +10,8 @@ import config
 import wandb
 from torch.nn import functional as F
 
+import dataset_io
+
 
 class Trainer:
     def __init__(self, dataset, model, discriminator=None):
@@ -52,39 +54,70 @@ class Trainer:
         time_start = time.time()
         finetune1_logs = {"loss": [], "domain_loss": [], "domain_accuracy": []}
         config.log({"status": 1})
-        for epoch in tqdm(range(1, config.finetune1_epochs + 1), position=0, leave=False):
-            train_loader = self.dataset.get_augmented_data()
-            loss_mse = 0
-            domain_total_loss = 0
-            domain_acc = 0
-            for batch_idx, (low_res_crops, high_res_crops, domain_label) in enumerate(tqdm(train_loader, position=1, leave=False)):
-                p = float((batch_idx + epoch * len(train_loader)) / (config.finetune1_epochs * len(train_loader)))
-                alpha = 2. / (1. + np.exp(-10 * p)) - 1
-                low_res_crops = low_res_crops.to(config.device)
-                high_res_crops = high_res_crops.to(config.device)
-                high, domain_class = self.model(low_res_crops[:, 0:1], low_res_crops[:, -1:], alpha)
+        source_dataset = None
+        if "DA" in config.tags:
+            source_dataset = dataset_io.Dataset(config.source_dataset, config.source_var, "train")
+        for epoch in tqdm(range(config.finetune1_epochs), position=0, leave=False):
+            target_loader = self.dataset.get_augmented_data()
+            source_loader = [None]*len(target_loader)
+            if source_dataset is not None:
+                source_loader = source_dataset.get_augmented_data()
+            train_length = min(len(source_loader),len(target_loader))
+            source_iter = iter(source_loader)
+            target_iter = iter(target_loader)
+            source_out_loss = 0
+            source_label_loss = 0
+            target_out_loss = 0
+            target_label_loss = 0
+            total_loss = 0
+            for batch_idx in tqdm(range(train_length), position=1, leave=False):
                 self.optimizer_G.zero_grad()
-                error = (config.interval + 2) * self.criterion(high, high_res_crops)
-                loss_mse += error.mean().item()
-                if "ensemble_training" in config.tags and config.domain_backprop:
-                    domain_label = F.one_hot(domain_label, num_classes=len(config.pretrain_vars)).float().to(config.device)
-                    domain_loss = (config.interval + 2) * self.domain_criterion(domain_class, domain_label) / 10
-                    domain_total_loss += domain_loss.mean().item()
-                    error += domain_loss
-                    domain_acc += torch.sum(torch.argmax(domain_class, dim=1) == torch.argmax(domain_label, dim=1)).detach().cpu().item()
+                p = float((batch_idx + epoch * train_length) / (config.finetune1_epochs * train_length))
+                alpha = 2. / (1. + np.exp(-10 * p)) - 1
+                target_obj = next(target_iter)
+                target_low, target_high = target_obj
+                target_low = target_low.to(config.device)
+                target_high = target_high.to(config.device)
+                target_out, target_class = self.model(target_low[:, 0:1], target_low[:, -1:], alpha)
+                target_out_err = self.criterion(target_out, target_high)
+                target_label_err = self.domain_criterion(target_class, torch.zeros(config.batch_size).to(config.device))
+                source_obj = next(source_iter)
+                source_out_err = source_label_err = 0
+                if source_obj is not None:
+                    source_low, source_high = source_obj
+                    source_low = source_low.to(config.device)
+                    source_high = source_high.to(config.device)
+                    source_out, source_class = self.model(source_low[:, 0:1], source_low[:, -1:], alpha)
+                    source_out_err = self.criterion(source_out, source_high)
+                    source_label_err = self.domain_criterion(source_class, torch.ones(config.batch_size).to(config.device))
+                error = source_out_err + source_label_err + target_out_err + target_label_err
+                source_out_loss += source_out_err.mean().item()
+                source_label_loss += source_label_err.mean().item()
+                target_out_loss += target_out_err.mean().item()
+                target_label_loss += target_label_err.mean().item()
+                total_loss += error.mean().item()
+                # if "ensemble_training" in config.tags and config.domain_backprop:
+                #     domain_label = F.one_hot(domain_label, num_classes=len(config.pretrain_vars)).float().to(config.device)
+                #     domain_loss = (config.interval + 2) * self.domain_criterion(domain_class, domain_label) / 10
+                #     domain_total_loss += domain_loss.mean().item()
+                #     error += domain_loss
+                #     domain_acc += torch.sum(torch.argmax(domain_class, dim=1) == torch.argmax(domain_label, dim=1)).detach().cpu().item()
                 error.backward()
                 self.optimizer_G.step()
-            domain_acc /= (len(train_loader) * config.batch_size)
-            if "ensemble_training" in config.tags and config.domain_backprop:
-                finetune1_logs["domain_loss"].append(domain_total_loss)
-                finetune1_logs["domain_accuracy"].append(domain_acc)
-                tqdm.write(f'FT1 domain loss: {domain_total_loss}')
-                tqdm.write(f'FT1 domain accuracy: {domain_acc * 100:.2f}%')
-                config.log({"FT1 domain loss": domain_total_loss})
-                config.log({"FT1 domain accuracy": domain_acc * 100})
-            finetune1_logs["loss"].append(loss_mse)
-            tqdm.write(f'FT1 loss: {loss_mse}')
-            config.log({"FT1 loss": loss_mse})
+            # if "ensemble_training" in config.tags and config.domain_backprop:
+            #     finetune1_logs["domain_loss"].append(domain_total_loss)
+            #     finetune1_logs["domain_accuracy"].append(domain_acc)
+            #     tqdm.write(f'FT1 domain loss: {domain_total_loss}')
+            #     tqdm.write(f'FT1 domain accuracy: {domain_acc * 100:.2f}%')
+            #     config.log({"FT1 domain loss": domain_total_loss})
+            #     config.log({"FT1 domain accuracy": domain_acc * 100})
+            tqdm.write(f"Source Out L: {source_out_loss}")
+            tqdm.write(f"Source Label L: {source_label_loss}")
+            tqdm.write(f"Target Out L: {target_out_loss}")
+            tqdm.write(f"Target Label L: {target_label_loss}")
+            finetune1_logs["loss"].append(total_loss)
+            tqdm.write(f'FT1 loss: {total_loss}')
+            config.log({"FT1 loss": total_loss})
         time_end = time.time()
         finetune1_time_cost = time_end - time_start
         finetune1_logs["time_cost"] = finetune1_time_cost
