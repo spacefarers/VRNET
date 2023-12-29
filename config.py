@@ -10,8 +10,8 @@ os.environ["WANDB_SILENT"] = "true"
 machine = platform.node()
 
 
-dataset = "hurricane"
-target_var = "RAIN"
+dataset = "half-cylinder"
+target_var = "640"
 
 # dataset = 'half-cylinder'
 # source_dataset = 'hurricane'
