@@ -96,21 +96,8 @@ class Trainer:
                     target_label_loss += target_label_err.mean().item()
                 error = source_out_err + source_label_err + target_out_err + target_label_err
                 total_loss += error.mean().item()
-                # if "ensemble_training" in config.tags and config.domain_backprop:
-                #     domain_label = F.one_hot(domain_label, num_classes=len(config.pretrain_vars)).float().to(config.device)
-                #     domain_loss = (config.interval + 2) * self.domain_criterion(domain_class, domain_label) / 10
-                #     domain_total_loss += domain_loss.mean().item()
-                #     error += domain_loss
-                #     domain_acc += torch.sum(torch.argmax(domain_class, dim=1) == torch.argmax(domain_label, dim=1)).detach().cpu().item()
                 error.backward()
                 self.optimizer_G.step()
-            # if "ensemble_training" in config.tags and config.domain_backprop:
-            #     finetune1_logs["domain_loss"].append(domain_total_loss)
-            #     finetune1_logs["domain_accuracy"].append(domain_acc)
-            #     tqdm.write(f'FT1 domain loss: {domain_total_loss}')
-            #     tqdm.write(f'FT1 domain accuracy: {domain_acc * 100:.2f}%')
-            #     config.log({"FT1 domain loss": domain_total_loss})
-            #     config.log({"FT1 domain accuracy": domain_acc * 100})
             if "DA" in config.tags:
                 tqdm.write(f"Source Out L: {source_out_loss}")
                 tqdm.write(f"Source Label L: {source_label_loss}")
