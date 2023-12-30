@@ -89,14 +89,14 @@ def seed_everything(seed=42):
 
 
 seed_everything()
-run = None
+log_obj = None
 
 
 def init_logging():
-    assert run is None, "run is already set"
+    assert log_obj is None, "run is already set"
     assert run_id is not None, "run_id is not set"
-    global run
-    run = neptune.init_run(
+    global log_obj
+    log_obj = neptune.init_run(
         project="VRNET/VRNET",
         api_token=keys.NEPTUNE_API_KEY,
     )
@@ -104,7 +104,7 @@ def init_logging():
         "learning_rate_generator": lr[0],
         "learning_rate_discriminator": lr[1],
     }
-    run["parameters"] = params
+    log_obj["parameters"] = params
 
 
 domain_backprop = False
@@ -113,8 +113,8 @@ domain_backprop = False
 def log(data):
     if enable_logging is None:
         return
-    global run
-    if run is None:
+    global log_obj
+    if log_obj is None:
         init_logging()
     for key, value in data.items():
-        run[key].append(value)
+        log_obj[key].append(value)

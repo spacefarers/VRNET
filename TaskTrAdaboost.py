@@ -28,7 +28,7 @@ def TaskTrAdaboost(run_id=200, iters=5, tag="TTrA"):
         save_plot(PSNR, PSNR_list, T.experiment_dir, run_cycle=cycle)
         print(f"Cycle {cycle} PSNR: {PSNR}")
         config.log({"PSNR": PSNR})
-    config.run["status"] = "Succeeded"
+    config.log_obj["status"] = "Succeeded"
 
 
 if __name__ == "__main__":

@@ -52,7 +52,7 @@ class Trainer:
     def finetune1(self):
         time_start = time.time()
         finetune1_logs = {"loss": [], "domain_loss": [], "domain_accuracy": []}
-        config.run["status"] = "Finetune 1"
+        config.log_obj["status"] = "Finetune 1"
         source_dataset = None
         if "DA" in config.tags:
             source_dataset = dataset_io.Dataset(config.source_dataset, config.source_var, "train")
@@ -114,7 +114,7 @@ class Trainer:
     def finetune2(self):
         time_start = time.time()
         finetune2_logs = {"generator_loss": [], "discriminator_loss": [], "domain_loss": []}
-        config.run["status"] = "Finetune 2"
+        config.log_obj["status"] = "Finetune 2"
         for epoch in tqdm(range(1, config.finetune2_epochs + 1), position=0):
             train_loader = self.dataset.get_augmented_data()
             generator_loss = 0
