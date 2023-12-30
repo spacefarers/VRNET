@@ -99,7 +99,7 @@ def init_logging():
     log_obj = neptune.init_run(
         project="VRNET/VRNET",
         api_token=keys.NEPTUNE_API_KEY,
-        name=run_id,
+        name=f'{run_id:03d} ({machine})',
         tags=tags,
     )
     params = {
