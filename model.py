@@ -403,5 +403,5 @@ def load_model(model, new_model):
     try:
         model.load_state_dict(new_model)
     except:
-        model.domain_classifier = DomainClassifier()
+        model.module.domain_classifier = DomainClassifier()
         model.load_state_dict(new_model)
