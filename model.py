@@ -377,7 +377,7 @@ class Net(nn.Module):
 
 def prep_model(model):
     model = model.to(config.device)
-    # model = nn.DataParallel(model)
+    model = nn.DataParallel(model)
     model.apply(weights_init_kaiming)
     return model
 
