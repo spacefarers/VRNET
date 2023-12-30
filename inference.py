@@ -6,7 +6,7 @@ from pathlib import Path
 import json
 from matplotlib import pyplot as plt
 import numpy as np
-import wandb
+from neptune.types import File
 from model import Net,prep_model
 from dataset_io import Dataset
 
@@ -17,7 +17,7 @@ def infer_and_evaluate(model, inference_dir=None, write_to_file=False, experimen
         Path(inference_dir).mkdir(parents=True, exist_ok=True)
     model.eval()
     print('=======Inference========')
-    config.log({"status": 3})
+    config.log({"logging": 3})
     data = Dataset(config.target_dataset, config.target_var, "all")
     start_time = time.time()
     PSNR_list = []
@@ -74,4 +74,4 @@ def save_plot(PSNR, PSNR_list, save_path, ensemble_iter=None, run_cycle=None):
     plt.title(desc)
     plt.yticks(list(plt.yticks()[0]) + [PSNR])
     plt.savefig(save_path + f'/{name}.png', dpi=300)
-    config.log({name: wandb.Image(save_path + f'/{name}.png', caption=f'{desc}')})
+    config.log({"PSNR Plot": File(save_path + f'/{name}.png')})

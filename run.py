@@ -37,7 +37,7 @@ def run(run_id=100, finetune1_epochs=20, finetune2_epochs=0, cycles=1, load_ense
         save_plot(PSNR, PSNR_list, T.experiment_dir, run_cycle=cycle)
         print(f"Cycle {cycle} PSNR: {PSNR}")
         config.log({"PSNR": PSNR})
-    config.log({"status": 4})
+    config.run["status"] = "Succeeded"
 
 
 if __name__ == "__main__":
