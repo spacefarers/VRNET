@@ -286,7 +286,8 @@ class ReverseLayerF(Function):
         output = grad_output.neg() * ctx.alpha
         return output, None
 
-class DomainClassifier(nn.Module):
+
+class AdvancedDomainClassifier(nn.Module):
     def __init__(self):
         super(DomainClassifier, self).__init__()
         self.conv1 = nn.Conv3d(64, 128, 4, 2, 1)
@@ -297,9 +298,9 @@ class DomainClassifier(nn.Module):
         self.bn3 = nn.BatchNorm3d(512)
         self.lstm = LSTMCell(512, 512, 3)
         self.fc1 = nn.Linear(int(np.prod(config.crop_size)), 1024)
-        self.fc2 = nn.Linear(1024, 1) # choose between source and target
+        self.fc2 = nn.Linear(1024, 1)  # choose between source and target
 
-    def forward(self, x): # x.shape: [batch_size, frames: 4, 64, crop_size[0], crop_size[1], crop_size[2]]
+    def forward(self, x):  # x.shape: [batch_size, frames: 4, 64, crop_size[0], crop_size[1], crop_size[2]]
         h = None
         c = None
         for t in range(x.shape[1]):
@@ -312,6 +313,20 @@ class DomainClassifier(nn.Module):
         x = self.fc2(x)
         x = x.squeeze(1)
         return x
+
+
+class DomainClassifier(nn.Module):
+    def __init__(self):
+        super(DomainClassifier, self).__init__()
+        self.domain_classifier = nn.Sequential()
+        self.domain_classifier.add_module('d_fc1', nn.Linear((config.interval+2)*int(np.prod(config.crop_size)), 100))
+        self.domain_classifier.add_module('d_bn1', nn.BatchNorm1d(100))
+        self.domain_classifier.add_module('d_relu1', nn.ReLU(True))
+        self.domain_classifier.add_module('d_fc2', nn.Linear(100, 2))
+        self.domain_classifier.add_module('d_softmax', nn.LogSoftmax(dim=1))
+
+    def forward(self, x):  # x.shape: [batch_size, frames: 4, 64, crop_size[0], crop_size[1], crop_size[2]]
+        return self.domain_classifier(x)
 
 
 class Net(nn.Module):
@@ -364,20 +379,19 @@ def prep_model(model):
     model.apply(weights_init_kaiming)
     return model
 
+
 class MetaClassifier(nn.Module):
-    def __init__(self, models:list[Net]):
+    def __init__(self, models: list[Net]):
         super(MetaClassifier, self).__init__()
         self.models = models
         for model in models:
             for p in model.parameters():
                 p.requires_grad = False
         self.fc1 = nn.Linear(len(config.pretrain_vars), 256)
-        self.fc2 = nn.Linear(256,1)
+        self.fc2 = nn.Linear(256, 1)
 
     def forward(self, s, e):
         results = []
         for ind, model in enumerate(self.models):
-            results.append(model(s,e).unsqueeze(0))
-        x = torch.cat(results,dim=0)
-
-
+            results.append(model(s, e).unsqueeze(0))
+        x = torch.cat(results, dim=0)

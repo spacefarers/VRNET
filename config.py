@@ -10,17 +10,17 @@ os.environ["WANDB_SILENT"] = "true"
 machine = platform.node()
 
 
-dataset = "half-cylinder"
-target_var = "640"
+# dataset = "half-cylinder"
+# target_var = "640"
 
-# dataset = 'half-cylinder'
-# source_dataset = 'hurricane'
+target_dataset = 'hurricane'
+source_dataset = 'half-cylinder'
+source_var = "640"
+target_var = "RAIN"
 
 # source_dataset = ["160", "320", "6400"]
 # pretrain_vars = ["RAIN", "WSMAG"]
 
-# source_var = "RAIN"
-# target_var = "640"
 # target_var = "VAPOR"
 
 use_wandb = False

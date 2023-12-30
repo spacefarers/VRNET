@@ -14,7 +14,7 @@ def DomainAdaptation(run_id=200, finetune1_epochs=20, finetune2_epochs=0, cycles
     config.run_id = run_id
     config.finetune1_epochs = finetune1_epochs
     config.finetune2_epochs = finetune2_epochs
-    dataset_io = Dataset(config.dataset, config.target_var, "train")
+    dataset_io = Dataset(config.target_dataset, config.target_var, "train")
     M = model.prep_model(model.Net())
     D = model.prep_model(model.D())
     T = train.Trainer(dataset_io, M, D)

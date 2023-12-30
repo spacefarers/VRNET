@@ -11,7 +11,7 @@ def TaskTrAdaboost(run_id=200, iters=5, tag="TTrA"):
     config.tags.append(tag)
     config.run_id = run_id
 
-    dataset_io = Dataset(config.dataset, config.target_var, "all")
+    dataset_io = Dataset(config.target_dataset, config.target_var, "all")
     if config.load_ensemble_model:
         config.ensemble_path = config.experiments_dir + f"{(run_id - 100):03d}/finetune2.pth"
         print("Loading ensemble model...")

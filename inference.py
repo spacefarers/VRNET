@@ -18,10 +18,10 @@ def infer_and_evaluate(model, inference_dir=None, write_to_file=False, experimen
     model.eval()
     print('=======Inference========')
     config.log({"status": 3})
-    data = Dataset(config.dataset, config.target_var, "all")
+    data = Dataset(config.target_dataset, config.target_var, "all")
     start_time = time.time()
     PSNR_list = []
-    for ind, (low_res_window, high_res_window) in enumerate(tqdm(data.get_raw_data(), desc=f"Inferring {config.dataset}-{config.target_var}")):
+    for ind, (low_res_window, high_res_window) in enumerate(tqdm(data.get_raw_data(), desc=f"Inferring {config.target_dataset}-{config.target_var}")):
         low_res_window = low_res_window.to(config.device)
         with torch.no_grad():
             pred, _ = model(low_res_window[:,0:1], low_res_window[:,-1:])
@@ -40,7 +40,7 @@ def infer_and_evaluate(model, inference_dir=None, write_to_file=False, experimen
                     PSNR_list.append(PSNR)
                     if write_to_file:
                         data.tofile(
-                            f'{inference_dir}{config.dataset}-{config.target_var}-{ind * config.batch_size * (config.interval + 1) + batch_num * (config.interval + 1) + j + 1}.raw',
+                            f'{inference_dir}{config.target_dataset}-{config.target_var}-{ind * config.batch_size * (config.interval + 1) + batch_num * (config.interval + 1) + j + 1}.raw',
                             format='<f')
     end_time = time.time()
     time_cost = end_time - start_time
@@ -56,13 +56,13 @@ def infer_and_evaluate(model, inference_dir=None, write_to_file=False, experimen
 
 def save_plot(PSNR, PSNR_list, save_path, ensemble_iter=None, run_cycle=None):
     if ensemble_iter is not None:
-        desc = f'#{config.run_id}{f" E.{ensemble_iter}"}: {config.dataset} {config.target_var} PSNR'
+        desc = f'#{config.run_id}{f" E.{ensemble_iter}"}: {config.target_dataset} {config.target_var} PSNR'
         name = f'PSNR-E.{ensemble_iter}'
     elif run_cycle is not None:
-        desc = f'#{config.run_id}{f" C.{run_cycle}"}: {config.dataset} {config.target_var} PSNR'
+        desc = f'#{config.run_id}{f" C.{run_cycle}"}: {config.target_dataset} {config.target_var} PSNR'
         name = f'PSNR-C.{run_cycle}'
     else:
-        desc = f'#{config.run_id}: {config.dataset} {config.target_var} PSNR'
+        desc = f'#{config.run_id}: {config.target_dataset} {config.target_var} PSNR'
         name = 'PSNR'
     plt.clf()
     axes = plt.gca()

@@ -8,7 +8,6 @@ import torch
 from torch.utils.data import DataLoader, ConcatDataset
 import config
 
-
 class Dataset:
     def __init__(self, dataset, selected_var, splice_strategy):
         self.dataset = dataset
