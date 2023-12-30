@@ -152,4 +152,4 @@ cython_debug/
 .idea/
 .gitattributes
 *.iml
-secrets.py
+keys.py

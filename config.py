@@ -3,7 +3,7 @@ import torch
 import os
 import numpy as np
 import neptune
-import secrets
+import keys
 
 machine = platform.node()
 
@@ -98,7 +98,7 @@ def init_logging():
     global run
     run = neptune.init_run(
         project="VRNET/VRNET",
-        api_token=secrets.NEPTUNE_API_KEY,
+        api_token=keys.NEPTUNE_API_KEY,
     )
     params = {
         "learning_rate_generator": lr[0],
