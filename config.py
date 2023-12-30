@@ -99,6 +99,8 @@ def init_logging():
     log_obj = neptune.init_run(
         project="VRNET/VRNET",
         api_token=keys.NEPTUNE_API_KEY,
+        name=run_id,
+        tags=tags,
     )
     params = {
         "learning_rate_generator": lr[0],
