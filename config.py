@@ -93,9 +93,9 @@ log_obj = None
 
 
 def init_logging():
+    global log_obj
     assert log_obj is None, "run is already set"
     assert run_id is not None, "run_id is not set"
-    global log_obj
     log_obj = neptune.init_run(
         project="VRNET/VRNET",
         api_token=keys.NEPTUNE_API_KEY,
