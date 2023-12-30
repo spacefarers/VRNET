@@ -40,7 +40,7 @@ elif 'crc' in machine:
     root_data_dir = '/afs/crc.nd.edu/user/m/myang9/data/'
     experiments_dir = '/scratch365/myang9/experiments/'
     processed_dir = "/scratch365/myang9/processed_data/"
-    batch_size = 1
+    # batch_size = 2
     use_wandb = True
 elif 'MacBook' in machine or 'mbp' in machine:
     root_data_dir = '/Users/spacefarers/data/'
@@ -50,6 +50,7 @@ elif 'HomePC' in machine:
     root_data_dir = '/mnt/c/Users/spacefarers/data/'
     experiments_dir = '/mnt/c/Users/spacefarers/experiments/'
     processed_dir = '/mnt/c/Users/spacefarers/data/processed_data/'
+    batch_size = 2
 else:
     raise Exception("Unknown machine")
 

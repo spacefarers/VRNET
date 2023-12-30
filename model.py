@@ -329,7 +329,7 @@ class DomainClassifier(nn.Module):
 
     def forward(self, x):  # x.shape: [batch_size, frames: 4, 64, crop_size[0], crop_size[1], crop_size[2]]
         x = x.view(x.size(0), -1)  # Flatten the tensor
-        return self.domain_classifier(x)
+        return self.domain_classifier(x).squeeze(1)
 
 
 class Net(nn.Module):
