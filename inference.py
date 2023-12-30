@@ -12,7 +12,7 @@ from dataset_io import Dataset
 
 def infer_and_evaluate(model, inference_dir=None, write_to_file=False, experiments_dir=None):
     if type(model) == str:
-        model = prep_model(Net()).load_state_dict(torch.load(experiments_dir+model))
+        model = prep_model(Net()).load_model(torch.load(experiments_dir+model))
     if write_to_file:
         Path(inference_dir).mkdir(parents=True, exist_ok=True)
     model.eval()

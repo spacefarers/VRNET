@@ -33,7 +33,7 @@ class Trainer:
         self.run_cycle = config.run_cycle
 
     def load_model(self, path):
-        self.model.load_state_dict(torch.load(path))
+        self.model.load_model(torch.load(path))
 
     def jump_to_progress(self):
         for stage in reversed(self.stages):

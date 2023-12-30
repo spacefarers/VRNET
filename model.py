@@ -357,8 +357,14 @@ class Net(nn.Module):
                                             nn.Conv3d(16 // 2, 1, 3, 1, 1)
                                             ])
 
-        if config.domain_backprop:
+        self.domain_classifier = None
+
+    def load_model(self, model):
+        try:
+            self.load_state_dict(model)
+        except RuntimeError:
             self.domain_classifier = DomainClassifier()
+            self.load_state_dict(model)
 
     def forward(self, s, e, alpha=None):
         features = [self.s(s)]
@@ -367,6 +373,8 @@ class Net(nn.Module):
         features.append(self.s(e))
         domain_output = None
         if self.training and config.domain_backprop:
+            if self.domain_classifier is None:
+                self.domain_classifier = DomainClassifier()
             reverse_features = [ReverseLayerF.apply(i, alpha).unsqueeze(1) for i in features]
             domain_output = self.domain_classifier(torch.cat(reverse_features, dim=1))
         output = torch.cat([self.upscaler(i) for i in features], dim=1)
