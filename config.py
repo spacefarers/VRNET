@@ -13,10 +13,10 @@ machine = platform.node()
 # dataset = "half-cylinder"
 # target_var = "640"
 
-target_dataset = 'hurricane'
-source_dataset = 'half-cylinder'
-source_var = "640"
-target_var = "RAIN"
+target_dataset = 'half-cylinder'
+target_var = "640"
+source_dataset = 'hurricane'
+source_var = "RAIN"
 
 # source_dataset = ["160", "320", "6400"]
 # pretrain_vars = ["RAIN", "WSMAG"]
