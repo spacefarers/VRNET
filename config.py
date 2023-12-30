@@ -40,7 +40,7 @@ elif 'crc' in machine:
     root_data_dir = '/afs/crc.nd.edu/user/m/myang9/data/'
     experiments_dir = '/scratch365/myang9/experiments/'
     processed_dir = "/scratch365/myang9/processed_data/"
-    batch_size = 2
+    batch_size = 1
     use_wandb = True
 elif 'MacBook' in machine or 'mbp' in machine:
     root_data_dir = '/Users/spacefarers/data/'
