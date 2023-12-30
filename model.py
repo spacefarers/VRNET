@@ -405,3 +405,4 @@ def load_model(model, new_model):
     except:
         model.module.domain_classifier = DomainClassifier()
         model.load_state_dict(new_model)
+    return model
