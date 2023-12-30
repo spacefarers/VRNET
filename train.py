@@ -8,6 +8,7 @@ import json
 import time
 import config
 from torch.nn import functional as F
+from model import load_model
 
 import dataset_io
 
@@ -33,7 +34,7 @@ class Trainer:
         self.run_cycle = config.run_cycle
 
     def load_model(self, path):
-        self.model.load_model(torch.load(path))
+        self.model = load_model(self.model, torch.load(path))
 
     def jump_to_progress(self):
         for stage in reversed(self.stages):

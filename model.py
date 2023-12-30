@@ -319,7 +319,8 @@ class DomainClassifier(nn.Module):
     def __init__(self):
         super(DomainClassifier, self).__init__()
         self.domain_classifier = nn.Sequential()
-        self.domain_classifier.add_module('fc1', nn.Linear((config.interval+2)*int(np.prod(config.crop_size)) * 64, 100))
+        self.domain_classifier.add_module('fc1',
+                                          nn.Linear((config.interval + 2) * int(np.prod(config.crop_size)) * 64, 100))
         self.domain_classifier.add_module('relu1', nn.ReLU(True))
         self.domain_classifier.add_module('dpt1', nn.Dropout())
         self.domain_classifier.add_module('fc2', nn.Linear(100, 1))
@@ -359,13 +360,6 @@ class Net(nn.Module):
 
         self.domain_classifier = None
 
-    def load_model(self, model):
-        try:
-            self.load_state_dict(model)
-        except RuntimeError:
-            self.domain_classifier = DomainClassifier()
-            self.load_state_dict(model)
-
     def forward(self, s, e, alpha=None):
         features = [self.s(s)]
         for k in range(0, self.interval):
@@ -403,3 +397,11 @@ class MetaClassifier(nn.Module):
         for ind, model in enumerate(self.models):
             results.append(model(s, e).unsqueeze(0))
         x = torch.cat(results, dim=0)
+
+
+def load_model(model, new_model):
+    try:
+        model.load_state_dict(new_model)
+    except RuntimeError:
+        model.domain_classifier = DomainClassifier()
+        model.load_state_dict(new_model)

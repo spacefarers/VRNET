@@ -7,12 +7,13 @@ import json
 from matplotlib import pyplot as plt
 import numpy as np
 from neptune.types import File
-from model import Net,prep_model
+from model import Net, prep_model, load_model
 from dataset_io import Dataset
+
 
 def infer_and_evaluate(model, inference_dir=None, write_to_file=False, experiments_dir=None):
     if type(model) == str:
-        model = prep_model(Net()).load_model(torch.load(experiments_dir+model))
+        model = load_model(prep_model(Net()), (torch.load(experiments_dir + model)))
     if write_to_file:
         Path(inference_dir).mkdir(parents=True, exist_ok=True)
     model.eval()
@@ -21,13 +22,14 @@ def infer_and_evaluate(model, inference_dir=None, write_to_file=False, experimen
     data = Dataset(config.target_dataset, config.target_var, "all")
     start_time = time.time()
     PSNR_list = []
-    for ind, (low_res_window, high_res_window) in enumerate(tqdm(data.get_raw_data(), desc=f"Inferring {config.target_dataset}-{config.target_var}")):
+    for ind, (low_res_window, high_res_window) in enumerate(
+            tqdm(data.get_raw_data(), desc=f"Inferring {config.target_dataset}-{config.target_var}")):
         low_res_window = low_res_window.to(config.device)
         with torch.no_grad():
-            pred, _ = model(low_res_window[:,0:1], low_res_window[:,-1:])
+            pred, _ = model(low_res_window[:, 0:1], low_res_window[:, -1:])
             pred = pred.detach().cpu().numpy()
             for batch_num in range(pred.shape[0]):
-                for j in range(0 if ind+batch_num == 0 else 1, config.interval + 2):
+                for j in range(0 if ind + batch_num == 0 else 1, config.interval + 2):
                     data = pred[batch_num][j]
                     data = np.asarray(data, dtype='<f')
                     data = data.flatten('F')
