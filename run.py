@@ -41,4 +41,4 @@ def run(run_id=100, finetune1_epochs=20, finetune2_epochs=0, cycles=1, load_ense
 
 
 if __name__ == "__main__":
-    fire.Fire(log_obj)
+    fire.Fire(run)
