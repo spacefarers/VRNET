@@ -61,9 +61,9 @@ crop_times = 4
 crop_size = [16, 16, 16] # must be multiples of 8 and smaller than low res size
 scale = 4
 load_ensemble_model = False
-ensemble_path = experiments_dir + f"ensemble/{dataset}/ensemble.pth"
+ensemble_path = experiments_dir + f"ensemble/{target_dataset}/ensemble.pth"
 run_id = None
-tags = [machine,dataset]
+tags = [machine,target_dataset]
 lr=(1e-4,4e-4)
 
 pretrain_epochs = 0

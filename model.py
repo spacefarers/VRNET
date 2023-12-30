@@ -319,13 +319,16 @@ class DomainClassifier(nn.Module):
     def __init__(self):
         super(DomainClassifier, self).__init__()
         self.domain_classifier = nn.Sequential()
-        self.domain_classifier.add_module('d_fc1', nn.Linear((config.interval+2)*int(np.prod(config.crop_size)), 100))
-        self.domain_classifier.add_module('d_bn1', nn.BatchNorm1d(100))
-        self.domain_classifier.add_module('d_relu1', nn.ReLU(True))
-        self.domain_classifier.add_module('d_fc2', nn.Linear(100, 2))
-        self.domain_classifier.add_module('d_softmax', nn.LogSoftmax(dim=1))
+        self.domain_classifier.add_module('fc1', nn.Linear((config.interval+2)*int(np.prod(config.crop_size)) * 64, 1024))
+        self.domain_classifier.add_module('relu1', nn.ReLU(True))
+        self.domain_classifier.add_module('dpt1', nn.Dropout())
+        self.domain_classifier.add_module('fc2', nn.Linear(1024, 1024))
+        self.domain_classifier.add_module('relu2', nn.ReLU(True))
+        self.domain_classifier.add_module('dpt2', nn.Dropout())
+        self.domain_classifier.add_module('fc3', nn.Linear(1024, 1))
 
     def forward(self, x):  # x.shape: [batch_size, frames: 4, 64, crop_size[0], crop_size[1], crop_size[2]]
+        x = x.view(x.size(0), -1)  # Flatten the tensor
         return self.domain_classifier(x)
 
 
