@@ -118,3 +118,11 @@ def log(data):
         init_logging()
     for key, value in data.items():
         log_obj[key].append(value)
+
+def set_status(status):
+    if enable_logging is None:
+        return
+    global log_obj
+    if log_obj is None:
+        init_logging()
+    log_obj["status"] = status
