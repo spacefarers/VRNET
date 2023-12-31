@@ -6,7 +6,7 @@ import fire
 from inference import infer_and_evaluate, save_plot
 
 
-def TaskTrAdaboost(run_id=200, iters=5, tag="TTrA"):
+def TrAdaboost(run_id=200, iters=5, tag="TrA"):
     print(f"Running {tag} {run_id}...")
     config.tags.append(tag)
     config.run_id = run_id
