@@ -43,6 +43,10 @@ class Dataset:
         self.high_res = None
         self.low_res = None
 
+    def __len__(self):
+        num_windows = len(self.splice_strategy) - config.interval - 1
+        return num_windows*config.crop_times
+
     def prepare_data(self):
         source_data = []
         for i in tqdm(range(1, self.total_samples + 1), leave=False, desc=f"Reading data {self.dataset}-{self.selected_var}"):
@@ -146,8 +150,14 @@ class MixedDataset:
     def __init__(self, datasets):
         self.datasets = datasets
 
-    def get_data(self, splice_strategy):
-        # combine 3 dataloaders
-        dataloaders = [dataset.get_data(splice_strategy) for dataset in self.datasets]
-        concat_loader = DataLoader(dataset=ConcatDataset([d.dataset for d in dataloaders]), batch_size=config.batch_size, shuffle=True)
+    def get_data(self, fixed=False):
+        dataloaders = []
+        bp = (config.crop_size, config.crop_times)
+        for dataset in self.datasets:
+            # if not fixed:
+            #     config.crop_size = (dataset.dims[0]/config.scale,dataset.dims[1]/config.scale,dataset.dims[2]/config.scale)
+            #     config.crop_times = 1
+            dataloaders.append(dataset.get_augmented_data() if not fixed else dataset.get_raw_data())
+        config.crop_size, config.crop_times = bp
+        concat_loader = DataLoader(dataset=ConcatDataset([d.dataset for d in dataloaders]), batch_size=config.batch_size, shuffle=not fixed)
         return concat_loader

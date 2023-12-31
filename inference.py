@@ -18,7 +18,7 @@ def infer_and_evaluate(model, inference_dir=None, write_to_file=False, experimen
         Path(inference_dir).mkdir(parents=True, exist_ok=True)
     model.eval()
     print('=======Inference========')
-    config.log({"logging": 3})
+    config.set_status("Inferring")
     data = Dataset(config.target_dataset, config.target_var, "all")
     start_time = time.time()
     PSNR_list = []
