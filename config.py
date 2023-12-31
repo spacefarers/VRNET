@@ -68,7 +68,7 @@ pretrain_epochs = 0
 finetune1_epochs = 10
 finetune2_epochs = 10
 
-train_data_split = 20  # percentage of data used for training
+train_data_split = 20  # number of data used for training
 
 run_cycle = None
 ensemble_iter = None

@@ -31,7 +31,7 @@ class Dataset:
 
         self.hi_res = []
         self.low_res = []
-        train_splice = list(range(0, 5))
+        train_splice = list(range(0, config.train_data_split))
         all_splice = list(range(self.total_samples))
         if splice_strategy == "train":
             self.splice_strategy = train_splice
