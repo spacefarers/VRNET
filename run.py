@@ -20,7 +20,7 @@ def run(run_id=100, finetune1_epochs=20, finetune2_epochs=0, cycles=1, load_ense
     config.finetune1_epochs = finetune1_epochs
     config.finetune2_epochs = finetune2_epochs
     config.load_ensemble_model = load_ensemble_model
-    dataset_io = Dataset(config.target_dataset, config.target_var, "all")
+    dataset_io = Dataset(config.target_dataset, config.target_var, "train")
     if config.load_ensemble_model:
         config.ensemble_path = config.experiments_dir + f"{(run_id - 100):03d}/finetune2.pth"
         print("Loading ensemble model...")
