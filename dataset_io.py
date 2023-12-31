@@ -157,7 +157,7 @@ class MixedDataset:
             # if not fixed:
             #     config.crop_size = (dataset.dims[0]/config.scale,dataset.dims[1]/config.scale,dataset.dims[2]/config.scale)
             #     config.crop_times = 1
-            dataloaders.append(dataset.get_augmented_data() if not fixed else dataset.get_raw_data())
+            dataloaders.append(dataset.get_augmented_data())
         config.crop_size, config.crop_times = bp
         concat_loader = DataLoader(dataset=ConcatDataset([d.dataset for d in dataloaders]), batch_size=config.batch_size, shuffle=not fixed)
         return concat_loader

@@ -1,0 +1,10 @@
+fire
+torch
+numpy
+tqdm
+matplotlib
+scikit-image
+torchvision
+torchview
+torchviz
+neptune

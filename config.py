@@ -3,17 +3,16 @@ import torch
 import os
 import numpy as np
 import neptune
-import keys
 
 machine = platform.node()
 
 # dataset = "half-cylinder"
 # target_var = "640"
 
-target_dataset = 'half-cylinder'
-target_var = "640"
-source_dataset = 'hurricane'
-source_var = "RAIN"
+source_dataset = 'half-cylinder'
+source_var = "640"
+target_dataset = 'hurricane'
+target_var = "RAIN"
 
 # source_dataset = ["160", "320", "6400"]
 # pretrain_vars = ["RAIN", "WSMAG"]
@@ -96,6 +95,7 @@ def init_logging():
     global log_obj
     assert log_obj is None, "run is already set"
     assert run_id is not None, "run_id is not set"
+    import keys
     log_obj = neptune.init_run(
         project="VRNET/VRNET",
         api_token=keys.NEPTUNE_API_KEY,
@@ -113,7 +113,7 @@ domain_backprop = False
 
 
 def log(data):
-    if enable_logging is None:
+    if not enable_logging:
         return
     global log_obj
     if log_obj is None:
@@ -121,8 +121,9 @@ def log(data):
     for key, value in data.items():
         log_obj[key].append(value)
 
+
 def set_status(status):
-    if enable_logging is None:
+    if not enable_logging:
         return
     global log_obj
     if log_obj is None:

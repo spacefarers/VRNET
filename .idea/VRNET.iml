@@ -5,4 +5,7 @@
     <orderEntry type="jdk" jdkName="Remote Python 3.12.0 (sftp://spacefarers@1937h45p35.iok.la:41559/home/spacefarers/anaconda3/envs/ml/bin/python)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>
+  <component name="PackageRequirementsSettings">
+    <option name="versionSpecifier" value="Don't specify version" />
+  </component>
 </module>
