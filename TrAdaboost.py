@@ -41,7 +41,7 @@ def TrAdaboost(run_id=200, boosting_iters=20, cycles=1, tag="TrA"):
 
     for cycle in range(1, cycles + 1):
         config.log({"Cycle": cycle})
-        for boosting_iter in range(1, boosting_iters):
+        for boosting_iter in range(1, boosting_iters+1):
             config.log({"Boosting Iteration": boosting_iter})
             start_time = time()
             print(f"stage: {stage}")
