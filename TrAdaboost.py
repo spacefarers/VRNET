@@ -13,7 +13,7 @@ from matplotlib import pyplot as plt
 from time import time
 
 M = model.prep_model(model.Net())
-optimizer_G = torch.optim.Adam(M.parameters(), lr=1e-5, betas=(0.9, 0.999))
+optimizer_G = torch.optim.Adam(M.parameters(), lr=1e-6, betas=(0.9, 0.999))
 stage = 2
 source_len = 0
 
@@ -72,6 +72,8 @@ def TrAdaboost(run_id=200, boosting_iters=20, cycles=1, tag="TrA"):
             plt.plot(weights)
             plt.savefig(experiment_dir + f'/weights_{(cycle - 1) * boosting_iters + boosting_iter}.png')
             config.log({"weights": File(experiment_dir + f'/weights_{(cycle - 1) * boosting_iters + boosting_iter}.png')})
+            source_to_target_weight_ratio = np.sum(weights[:len(source_ds)]) / np.sum(weights[len(source_ds):])
+            config.log({"Source to Target Weight Ratio": source_to_target_weight_ratio})
         torch.save(M.state_dict(), experiment_dir + f'/finetune1.pth')
         PSNR, PSNR_list = infer_and_evaluate(M, write_to_file=True, inference_dir=inference_dir,
                                              experiments_dir=experiment_dir,data=target_inference_ds)
