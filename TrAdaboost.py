@@ -7,9 +7,11 @@ import torch
 import numpy as np
 from tqdm import tqdm
 from copy import deepcopy
+from torch import nn
 
 M = model.prep_model(model.Net())
 optimizer_G = torch.optim.Adam(M.parameters(), lr=config.lr[0], betas=(0.9, 0.999))
+
 
 def TrAdaboost(run_id=200, boosting_iters=5, cycles=1, tag="TrA"):
     print(f"Running {tag} {run_id}...")
@@ -32,18 +34,27 @@ def TrAdaboost(run_id=200, boosting_iters=5, cycles=1, tag="TrA"):
             print(f"Boosting iteration {boosting_iter}/{boosting_iters}:")
             weights = balance_weights(weights)
             train_loader = mixed_ds.get_data(fixed=True)
+            fit_model(train_loader, weights)
             error = calc_error(train_loader, weights)
-            fit_model(deepcopy(train_loader), weights)
-            print(error)
-            bata_T = error / (1 - error)
+            weighted_error = weights * error
+            print(np.sum(error))
+            bata_T = weighted_error / (1 - weighted_error)
+            for i in range(len(source_ds)):
+                weights[i] = weights[i] * np.power(bata_T[i], (-np.abs(error[i])))
+            for i in range(len(source_ds),len(source_ds)+len(target_ds)):
+                weights[i] = weights[i] * np.power(bata, np.abs(error[i]))
+            print(weights)
 
     config.set_status("Succeeded")
+
+
+MSE = nn.MSELoss()
 
 
 def weighted_MSE(pred, target, weights):
     pred = pred.view(config.batch_size, -1)
     target = target.view(config.batch_size, -1)
-    return weights * torch.mean((pred - target) ** 2, dim=1)
+    return weights * torch.mean(MSE(pred, target), dim=1)
 
 
 def fit_model(train_loader, weights):
@@ -55,25 +66,25 @@ def fit_model(train_loader, weights):
         M.train()
         optimizer_G.zero_grad()
         pred, _ = M(low_res[:, 0:1], low_res[:, -1:])
-        loss = torch.sum(weighted_MSE(pred, high_res, weights[batch_idx * config.batch_size: (batch_idx + 1) * config.batch_size]))
+        loss = torch.sum(
+            weighted_MSE(pred, high_res, weights[batch_idx * config.batch_size: (batch_idx + 1) * config.batch_size]))
         loss.backward()
         optimizer_G.step()
 
 
-def calc_error(train_loader, weights):
-    weights = torch.FloatTensor(weights).to(config.device)
+def calc_error(train_loader):
     global M
     error = []
     M.eval()
     for batch_idx, (low_res, high_res) in enumerate(tqdm(train_loader, desc="Calculating error", leave=False)):
-        with torch.no_grad:
+        with torch.no_grad():
             low_res = low_res.to(config.device)
             high_res = high_res.to(config.device)
             pred, _ = M(low_res[:, 0:1], low_res[:, -1:])
-            loss = weighted_MSE(pred, high_res, weights[batch_idx * config.batch_size: (batch_idx + 1) * config.batch_size])
+            loss = MSE(pred, high_res)
             loss = list(loss.detach().cpu().numpy())
             error += loss
-    return error
+    return np.array(error)
 
 
 def balance_weights(weights):
