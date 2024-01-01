@@ -6,14 +6,14 @@ from inference import infer_and_evaluate, save_plot
 import torch
 import numpy as np
 from tqdm import tqdm
-from copy import deepcopy
+from neptune.types import File
 from torch import nn
 import os
 from matplotlib import pyplot as plt
 from time import time
 
 M = model.prep_model(model.Net())
-optimizer_G = torch.optim.Adam(M.parameters(), lr=config.lr[0], betas=(0.9, 0.999))
+optimizer_G = torch.optim.Adam(M.parameters(), lr=1e-6, betas=(0.9, 0.999))
 stage = 2
 source_len = 0
 
@@ -50,7 +50,7 @@ def TrAdaboost(run_id=200, boosting_iters=20, cycles=1, tag="TrA"):
             fit_model(train_loader, weights)
             error = calc_error(train_loader)
             avg_target_error = np.mean(error[len(source_ds):])
-            print(f"avg: {avg_target_error}")
+            config.log({"Avg Target Error": avg_target_error})
             if avg_target_error > 0.1 and stage == 1:
                 continue
             elif stage == 1:
@@ -71,7 +71,7 @@ def TrAdaboost(run_id=200, boosting_iters=20, cycles=1, tag="TrA"):
             plt.clf()
             plt.plot(weights)
             plt.savefig(experiment_dir + f'/weights_{(cycle - 1) * boosting_iters + boosting_iter}.png')
-            config.log({"weights": weights})
+            config.log({"weights": File(experiment_dir + f'/weights_{(cycle - 1) * boosting_iters + boosting_iter}.png')})
         torch.save(M.state_dict(), experiment_dir + f'/finetune1.pth')
         PSNR, PSNR_list = infer_and_evaluate(M, write_to_file=True, inference_dir=inference_dir,
                                              experiments_dir=experiment_dir,data=target_inference_ds)
