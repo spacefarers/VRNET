@@ -6,6 +6,7 @@ from inference import infer_and_evaluate, save_plot
 import torch
 import numpy as np
 from tqdm import tqdm
+from copy import deepcopy
 
 M = model.prep_model(model.Net())
 optimizer_G = torch.optim.Adam(M.parameters(), lr=config.lr[0], betas=(0.9, 0.999))
@@ -31,8 +32,8 @@ def TrAdaboost(run_id=200, boosting_iters=5, cycles=1, tag="TrA"):
             print(f"Boosting iteration {boosting_iter}/{boosting_iters}:")
             weights = balance_weights(weights)
             train_loader = mixed_ds.get_data(fixed=True)
-            fit_model(train_loader, weights)
             error = calc_error(train_loader, weights)
+            fit_model(deepcopy(train_loader), weights)
             print(error)
             bata_T = error / (1 - error)
 
@@ -42,7 +43,7 @@ def TrAdaboost(run_id=200, boosting_iters=5, cycles=1, tag="TrA"):
 def weighted_MSE(pred, target, weights):
     pred = pred.view(config.batch_size, -1)
     target = target.view(config.batch_size, -1)
-    return torch.sum(weights * torch.mean((pred - target) ** 2, dim=1))
+    return weights * torch.mean((pred - target) ** 2, dim=1)
 
 
 def fit_model(train_loader, weights):
@@ -54,7 +55,7 @@ def fit_model(train_loader, weights):
         M.train()
         optimizer_G.zero_grad()
         pred, _ = M(low_res[:, 0:1], low_res[:, -1:])
-        loss = weighted_MSE(pred, high_res, weights[batch_idx * config.batch_size: (batch_idx + 1) * config.batch_size])
+        loss = torch.sum(weighted_MSE(pred, high_res, weights[batch_idx * config.batch_size: (batch_idx + 1) * config.batch_size]))
         loss.backward()
         optimizer_G.step()
 
@@ -63,13 +64,15 @@ def calc_error(train_loader, weights):
     weights = torch.FloatTensor(weights).to(config.device)
     global M
     error = []
+    M.eval()
     for batch_idx, (low_res, high_res) in enumerate(tqdm(train_loader, desc="Calculating error", leave=False)):
-        low_res = low_res.to(config.device)
-        high_res = high_res.to(config.device)
-        weights = weights[batch_idx * config.batch_size: (batch_idx + 1) * config.batch_size]
-        M.eval()
-        pred, _ = M(low_res[:, 0:1], low_res[:, -1:])
-        error.append(weighted_MSE(pred, high_res, weights))
+        with torch.no_grad:
+            low_res = low_res.to(config.device)
+            high_res = high_res.to(config.device)
+            pred, _ = M(low_res[:, 0:1], low_res[:, -1:])
+            loss = weighted_MSE(pred, high_res, weights[batch_idx * config.batch_size: (batch_idx + 1) * config.batch_size])
+            loss = list(loss.detach().cpu().numpy())
+            error += loss
     return error
 
 
