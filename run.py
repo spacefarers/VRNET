@@ -6,7 +6,7 @@ import fire
 from inference import infer_and_evaluate, save_plot
 
 
-def run(run_id=100, finetune1_epochs=20, finetune2_epochs=0, cycles=1, load_ensemble_model=False, tag="run", use_all_data=False, swap_source_target=False):
+def run(run_id=100, finetune1_epochs=20, finetune2_epochs=0, cycles=1, load_ensemble_model=False, tag="run", use_all_data=True, swap_source_target=True):
     if swap_source_target:
         config.target_dataset = config.source_dataset
         config.target_var = config.source_var
