@@ -65,13 +65,13 @@ def TrAdaboost(run_id=200, boosting_iters=20, cycles=1, tag="TrA"):
             plt.plot(error_diff)
             plt.savefig(experiment_dir + f'/error_diff{(cycle - 1) * boosting_iters + boosting_iter}.png')
             # normalize error
-            error_diff = error_diff / np.max(error_diff)
+            error = error / np.max(error)
             avg_target_error = weights[len(source_ds):].dot(error[len(source_ds):]) / len(target_ds)
             bata_T = avg_target_error / (1 - avg_target_error)
             for i in range(len(source_ds)):
-                weights[i] = weights[i] * np.power(bata, error_diff[i])
+                weights[i] = weights[i] * np.power(bata, error[i])
             for i in range(len(source_ds), len(source_ds) + len(target_ds)):
-                weights[i] = weights[i] * np.power(bata_T, (-error_diff[i]))
+                weights[i] = weights[i] * np.power(bata_T, (-error[i]))
             end_time = time()
             config.log({"Time Cost": end_time - start_time})
             plt.clf()
