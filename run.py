@@ -32,7 +32,6 @@ def run(run_id=100, finetune1_epochs=20, finetune2_epochs=0, cycles=1, load_ense
         print("Loading ensemble model...")
         PSNR, _ = infer_and_evaluate(config.ensemble_path, write_to_file=False)
         print(f"Baseline PSNR: {PSNR}")
-        config.log({"PSNR": PSNR})
     M = model.prep_model(model.Net())
     D = model.prep_model(model.D())
     T = train.Trainer(dataset_io, M, D)
@@ -42,7 +41,6 @@ def run(run_id=100, finetune1_epochs=20, finetune2_epochs=0, cycles=1, load_ense
         PSNR, PSNR_list = infer_and_evaluate(T.model, write_to_file=False if cycle != cycles else True, inference_dir=T.inference_dir, experiments_dir=T.experiment_dir)
         save_plot(PSNR, PSNR_list, T.experiment_dir, run_cycle=cycle)
         print(f"Cycle {cycle} PSNR: {PSNR}")
-        config.log({"PSNR": PSNR})
     config.set_status("Succeeded")
 
 

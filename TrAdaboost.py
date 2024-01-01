@@ -13,7 +13,7 @@ from matplotlib import pyplot as plt
 from time import time
 
 M = model.prep_model(model.Net())
-optimizer_G = torch.optim.Adam(M.parameters(), lr=1e-6, betas=(0.9, 0.999))
+optimizer_G = torch.optim.Adam(M.parameters(), lr=5e-6, betas=(0.9, 0.999))
 stage = 2
 source_len = 0
 
@@ -61,7 +61,6 @@ def TrAdaboost(run_id=200, boosting_iters=20, cycles=1, tag="TrA"):
             error = error / np.max(error)
             avg_target_error = weights[len(source_ds):].dot(error[len(source_ds):]) / len(target_ds)
             bata_T = avg_target_error / (1 - avg_target_error)
-            print(bata_T)
             for i in range(len(source_ds)):
                 weights[i] = weights[i] * np.power(bata, np.abs(error[i]))
             for i in range(len(source_ds), len(source_ds) + len(target_ds)):
@@ -77,7 +76,6 @@ def TrAdaboost(run_id=200, boosting_iters=20, cycles=1, tag="TrA"):
         torch.save(M.state_dict(), experiment_dir + f'/finetune1.pth')
         PSNR, PSNR_list = infer_and_evaluate(M, write_to_file=True, inference_dir=inference_dir,
                                              experiments_dir=experiment_dir,data=target_inference_ds)
-        config.log({"PSNR": PSNR})
         save_plot(PSNR, PSNR_list, experiment_dir, run_cycle=cycle)
 
     config.set_status("Succeeded")

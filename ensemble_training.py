@@ -41,9 +41,7 @@ def ensemble_training(run_id=135, finetune1_epochs=5, finetune2_epochs=5, ensemb
         print("Evaluating...")
         T = train.Trainer(datasets[config.target_var], M, D)
         PSNR, _ = T.inference(write_to_file=True, disable_jump=True)
-        config.log({"PSNR": PSNR})
         T.save_plot()
-        print(f"Cycle {cycle} PSNR: {PSNR}")
         training_logs[cycle] = PSNR
         with open(f"{config.experiments_dir}{config.run_id:03d}/ensemble_training.json", "w") as f:
             json.dump(training_logs, f, indent=4)
