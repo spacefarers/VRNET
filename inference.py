@@ -11,7 +11,7 @@ from model import Net, prep_model, load_model
 from dataset_io import Dataset
 
 
-def infer_and_evaluate(model, inference_dir=None, write_to_file=False, experiments_dir=None):
+def infer_and_evaluate(model, inference_dir=None, write_to_file=False, experiments_dir=None, data=None):
     if type(model) == str:
         model = load_model(prep_model(Net()), (torch.load(experiments_dir + model)))
     if write_to_file:
@@ -19,7 +19,8 @@ def infer_and_evaluate(model, inference_dir=None, write_to_file=False, experimen
     model.eval()
     print('=======Inference========')
     config.set_status("Inferring")
-    data = Dataset(config.target_dataset, config.target_var, "all")
+    if data is None:
+        data = Dataset(config.target_dataset, config.target_var, "all")
     start_time = time.time()
     PSNR_list = []
     for ind, (low_res_window, high_res_window) in enumerate(

@@ -74,7 +74,7 @@ def TrAdaboost(run_id=200, boosting_iters=20, cycles=1, tag="TrA"):
             config.log({"weights": weights})
         torch.save(M.state_dict(), experiment_dir + f'/finetune1.pth')
         PSNR, PSNR_list = infer_and_evaluate(M, write_to_file=True, inference_dir=inference_dir,
-                                             experiments_dir=experiment_dir)
+                                             experiments_dir=experiment_dir,data=target_inference_ds)
         config.log({"PSNR": PSNR})
         save_plot(PSNR, PSNR_list, experiment_dir, run_cycle=cycle)
 
