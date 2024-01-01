@@ -10,6 +10,7 @@ from copy import deepcopy
 from torch import nn
 import os
 from matplotlib import pyplot as plt
+from time import time
 
 M = model.prep_model(model.Net())
 optimizer_G = torch.optim.Adam(M.parameters(), lr=config.lr[0], betas=(0.9, 0.999))
@@ -29,6 +30,7 @@ def TrAdaboost(run_id=200, boosting_iters=20, cycles=1, tag="TrA"):
     global source_len, stage
     source_len = len(source_ds)
     target_ds = Dataset(config.target_dataset, config.target_var, "train")
+    target_inference_ds = Dataset(config.target_dataset, config.target_var, "all")
     mixed_ds = MixedDataset([source_ds, target_ds])
 
     weights_source = np.ones((len(source_ds), 1))
@@ -41,6 +43,7 @@ def TrAdaboost(run_id=200, boosting_iters=20, cycles=1, tag="TrA"):
         config.log({"Cycle": cycle})
         for boosting_iter in range(1, boosting_iters):
             config.log({"Boosting Iteration": boosting_iter})
+            start_time = time()
             print(f"stage: {stage}")
             weights = balance_weights(weights)
             train_loader = mixed_ds.get_data(fixed=True)
@@ -63,6 +66,8 @@ def TrAdaboost(run_id=200, boosting_iters=20, cycles=1, tag="TrA"):
                 weights[i] = weights[i] * np.power(bata, np.abs(error[i]))
             for i in range(len(source_ds), len(source_ds) + len(target_ds)):
                 weights[i] = weights[i] * np.power(bata_T, (-np.abs(error[i])))
+            end_time = time()
+            config.log({"Time Cost": end_time - start_time})
             plt.clf()
             plt.plot(weights)
             plt.savefig(experiment_dir + f'/weights_{(cycle - 1) * boosting_iters + boosting_iter}.png')
