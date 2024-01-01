@@ -3,6 +3,7 @@ import torch
 import os
 import numpy as np
 import neptune
+from tqdm import tqdm
 
 machine = platform.node()
 
@@ -119,6 +120,7 @@ def log(data):
     if log_obj is None:
         init_logging()
     for key, value in data.items():
+        tqdm.write(f"{key}: {value}")
         log_obj[key].append(value)
 
 
