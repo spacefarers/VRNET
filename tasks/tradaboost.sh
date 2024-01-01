@@ -10,4 +10,4 @@
 
 conda activate ml
 
-python3 ../TrAdaboost.py --run_id=$SGE_TASK_ID --boosting_iters=5 --cycles=20
+python3 ../TrAdaboost.py --run_id=$SGE_TASK_ID --boosting_iters=1 --cycles=45
