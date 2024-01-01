@@ -47,7 +47,7 @@ elif 'HomePC' in machine:
     root_data_dir = '/mnt/c/Users/spacefarers/data/'
     experiments_dir = '/mnt/c/Users/spacefarers/experiments/'
     processed_dir = '/mnt/c/Users/spacefarers/data/processed_data/'
-    batch_size = 2
+    # batch_size = 2
 else:
     raise Exception("Unknown machine")
 
@@ -68,7 +68,7 @@ pretrain_epochs = 0
 finetune1_epochs = 10
 finetune2_epochs = 10
 
-train_data_split = 10  # number of data used for training
+train_data_split = 5  # number of data used for training
 
 run_cycle = None
 ensemble_iter = None
@@ -114,14 +114,13 @@ domain_backprop = False
 
 
 def log(data):
-    if not enable_logging:
-        return
     global log_obj
-    if log_obj is None:
-        init_logging()
     for key, value in data.items():
         tqdm.write(f"{key}: {value}")
-        log_obj[key].append(value)
+        if enable_logging:
+            if log_obj is None:
+                init_logging()
+            log_obj[key].append(value)
 
 
 def set_status(status):
