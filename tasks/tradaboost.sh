@@ -6,7 +6,7 @@
 
 # -m e
 #$ -r y
-#$ -N stnet_BL
+#$ -N tradaboost
 
 conda activate ml
 
