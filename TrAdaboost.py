@@ -13,7 +13,7 @@ from matplotlib import pyplot as plt
 from time import time
 
 M = model.prep_model(model.Net())
-optimizer_G = torch.optim.Adam(M.parameters(), lr=1e-6, betas=(0.9, 0.999))
+optimizer_G = torch.optim.Adam(M.parameters(), lr=1e-5, betas=(0.9, 0.999))
 stage = 2
 source_len = 0
 

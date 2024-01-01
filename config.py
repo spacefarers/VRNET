@@ -62,7 +62,7 @@ load_ensemble_model = False
 ensemble_path = experiments_dir + f"ensemble/{target_dataset}/ensemble.pth"
 run_id = None
 tags = [machine, target_dataset]
-lr = (1e-4, 4e-4)
+lr = (1e-5, 4e-5)
 
 pretrain_epochs = 0
 finetune1_epochs = 10
