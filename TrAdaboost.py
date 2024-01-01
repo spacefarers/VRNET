@@ -13,7 +13,7 @@ from matplotlib import pyplot as plt
 
 M = model.prep_model(model.Net())
 optimizer_G = torch.optim.Adam(M.parameters(), lr=config.lr[0], betas=(0.9, 0.999))
-stage = 1
+stage = 2
 source_len = 0
 
 
@@ -56,7 +56,7 @@ def TrAdaboost(run_id=200, boosting_iters=20, cycles=1, tag="TrA"):
             config.log({"Total Error": np.sum(error)})
             # normalize error
             error = error / np.max(error)
-            avg_target_error = weights[len(source_ds):].dot(error[len(source_ds):])/len(target_ds)
+            avg_target_error = weights[len(source_ds):].dot(error[len(source_ds):]) / len(target_ds)
             bata_T = avg_target_error / (1 - avg_target_error)
             print(bata_T)
             for i in range(len(source_ds)):
@@ -70,7 +70,8 @@ def TrAdaboost(run_id=200, boosting_iters=20, cycles=1, tag="TrA"):
         torch.save(M.state_dict(), experiment_dir + f'/finetune1.pth')
         PSNR, PSNR_list = infer_and_evaluate(M, write_to_file=True, inference_dir=inference_dir,
                                              experiments_dir=experiment_dir)
-        print(f"Cycle {cycle} PSNR: {PSNR}")
+        config.log({"PSNR": PSNR})
+        save_plot(PSNR, PSNR_list, experiment_dir, run_cycle=cycle)
 
     config.set_status("Succeeded")
 
@@ -89,7 +90,7 @@ def fit_model(train_loader, weights):
     weights = torch.FloatTensor(weights).to(config.device)
     global M, optimizer_G
     for batch_idx, (low_res, high_res) in enumerate(tqdm(train_loader, desc="Fitting Model", leave=False)):
-        if stage == 1 and batch_idx*config.batch_size<source_len:
+        if stage == 1 and batch_idx * config.batch_size < source_len:
             continue
         low_res = low_res.to(config.device)
         high_res = high_res.to(config.device)
@@ -108,7 +109,7 @@ def calc_error(train_loader):
     error = []
     M.eval()
     for batch_idx, (low_res, high_res) in enumerate(tqdm(train_loader, desc="Calculating error", leave=False)):
-        if stage == 1 and batch_idx*config.batch_size<source_len:
+        if stage == 1 and batch_idx * config.batch_size < source_len:
             error += [0] * config.batch_size
             continue
         with torch.no_grad():
