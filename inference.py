@@ -24,7 +24,7 @@ def infer_and_evaluate(model, inference_dir=None, write_to_file=False, experimen
     start_time = time.time()
     PSNR_list = []
     for ind, (low_res_window, high_res_window) in enumerate(
-            tqdm(data.get_raw_data(), desc=f"Inferring {config.target_dataset}-{config.target_var}")):
+            tqdm(data.get_raw_data(), desc=f"Inferring {config.target_dataset}-{config.target_var}",leave=False)):
         low_res_window = low_res_window.to(config.device)
         with torch.no_grad():
             pred, _ = model(low_res_window[:, 0:1], low_res_window[:, -1:])

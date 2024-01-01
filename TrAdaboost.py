@@ -36,12 +36,14 @@ def TrAdaboost(run_id=200, boosting_iters=20, cycles=1, tag="TrA"):
     weights_source = np.ones((len(source_ds), 1))
     weights_target = np.ones((len(target_ds), 1))
     weights = np.concatenate((weights_source, weights_target), axis=0).squeeze(1)
+    prev_error = np.zeros((len(source_ds) + len(target_ds)))
 
     bata = 1 / (1 + np.sqrt(2 * np.log(len(source_ds) / boosting_iters)))
 
     for cycle in range(1, cycles + 1):
         config.log({"Cycle": cycle})
         for boosting_iter in range(1, boosting_iters+1):
+            print("-"*20)
             config.log({"Boosting Iteration": boosting_iter})
             start_time = time()
             print(f"stage: {stage}")
@@ -57,14 +59,19 @@ def TrAdaboost(run_id=200, boosting_iters=20, cycles=1, tag="TrA"):
                 stage = 2
                 continue
             config.log({"Total Error": np.sum(error)})
+            error_diff = error - prev_error
+            prev_error = error
+            plt.clf()
+            plt.plot(error_diff)
+            plt.savefig(experiment_dir + f'/error_diff{(cycle - 1) * boosting_iters + boosting_iter}.png')
             # normalize error
-            error = error / np.max(error)
+            error_diff = error_diff / np.max(error_diff)
             avg_target_error = weights[len(source_ds):].dot(error[len(source_ds):]) / len(target_ds)
             bata_T = avg_target_error / (1 - avg_target_error)
             for i in range(len(source_ds)):
-                weights[i] = weights[i] * np.power(bata, np.abs(error[i]))
+                weights[i] = weights[i] * np.power(bata, error_diff[i])
             for i in range(len(source_ds), len(source_ds) + len(target_ds)):
-                weights[i] = weights[i] * np.power(bata_T, (-np.abs(error[i])))
+                weights[i] = weights[i] * np.power(bata_T, (-error_diff[i]))
             end_time = time()
             config.log({"Time Cost": end_time - start_time})
             plt.clf()
