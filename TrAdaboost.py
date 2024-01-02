@@ -33,8 +33,8 @@ def TrAdaboost(run_id=200, boosting_iters=20, cycles=1, tag="TrA"):
     target_inference_ds = Dataset(config.target_dataset, config.target_var, "all")
     mixed_ds = MixedDataset([source_ds, target_ds])
 
-    weights_source = np.ones((len(source_ds), 1))
-    weights_target = np.ones((len(target_ds), 1))
+    weights_source = np.ones((len(source_ds), 1)) / len(source_ds)
+    weights_target = np.ones((len(target_ds), 1)) / len(target_ds)
     weights = np.concatenate((weights_source, weights_target), axis=0).squeeze(1)
     prev_error = np.zeros((len(source_ds) + len(target_ds)))
 
@@ -79,7 +79,7 @@ def TrAdaboost(run_id=200, boosting_iters=20, cycles=1, tag="TrA"):
             config.log({"weights": File(experiment_dir + f'/weights_{(cycle - 1) * boosting_iters + boosting_iter}.png')})
             source_to_target_weight_ratio = np.sum(weights[:len(source_ds)]) / np.sum(weights[len(source_ds):])
             config.log({"Source to Target Weight Ratio": source_to_target_weight_ratio})
-        torch.save(M.state_dict(), experiment_dir + f'/finetune1.pth')
+            torch.save(M.state_dict(), experiment_dir + f'/finetune1.pth')
         PSNR, PSNR_list = infer_and_evaluate(M, write_to_file=True, inference_dir=inference_dir,
                                              experiments_dir=experiment_dir,data=target_inference_ds)
         save_plot(PSNR, PSNR_list, experiment_dir, run_cycle=cycle)
