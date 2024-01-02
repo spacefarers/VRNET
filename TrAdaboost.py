@@ -13,7 +13,7 @@ from matplotlib import pyplot as plt
 from time import time
 
 M = model.prep_model(model.Net())
-optimizer_G = torch.optim.Adam(M.parameters(), lr=1e-5, betas=(0.9, 0.999))
+optimizer_G = torch.optim.Adam(M.parameters(), lr=5e-5, betas=(0.9, 0.999))
 stage = 2
 source_len = 0
 
@@ -65,13 +65,12 @@ def TrAdaboost(run_id=200, boosting_iters=20, cycles=1, tag="TrA"):
             plt.plot(error_diff)
             plt.savefig(experiment_dir + f'/error_diff_{(cycle - 1) * boosting_iters + boosting_iter}.png')
             # normalize error
-            error = error / np.max(error)
             avg_target_error = weights[len(source_ds):].dot(error[len(source_ds):]) / len(target_ds)
             bata_T = avg_target_error / (1 - avg_target_error)
             for i in range(len(source_ds)):
-                weights[i] = weights[i] * np.power(bata, error[i])
+                weights[i] = weights[i] * np.power(bata, error_diff[i])
             for i in range(len(source_ds), len(source_ds) + len(target_ds)):
-                weights[i] = weights[i] * np.power(bata_T, (-error[i]))
+                weights[i] = weights[i] * np.power(bata_T, (-error_diff[i]))
             end_time = time()
             config.log({"Time Cost": end_time - start_time})
             plt.clf()
