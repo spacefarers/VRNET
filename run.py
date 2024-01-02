@@ -7,9 +7,6 @@ from inference import infer_and_evaluate, save_plot
 
 
 def run(run_id=100, finetune1_epochs=20, finetune2_epochs=0, cycles=1, load_ensemble_model=False, tag="run", use_all_data=False, swap_source_target=False):
-    if swap_source_target:
-        config.target_dataset = config.source_dataset
-        config.target_var = config.source_var
     print(f"Running {tag} {run_id}...")
     if tag == "run":
         config.lr = (1e-6, 4e-6)
@@ -23,10 +20,12 @@ def run(run_id=100, finetune1_epochs=20, finetune2_epochs=0, cycles=1, load_ense
     config.finetune1_epochs = finetune1_epochs
     config.finetune2_epochs = finetune2_epochs
     config.load_ensemble_model = load_ensemble_model
-    if use_all_data:
-        dataset_io = Dataset(config.target_dataset, config.target_var, "all")
-    else:
-        dataset_io = Dataset(config.target_dataset, config.target_var, "train")
+    target_dataset = config.target_dataset
+    target_var = config.target_var
+    if swap_source_target:
+        target_dataset = config.source_dataset
+        target_var = config.source_var
+    dataset_io = Dataset(target_dataset, target_var, "all" if use_all_data else "train")
     if config.load_ensemble_model:
         config.ensemble_path = config.experiments_dir + f"{(run_id - 100):03d}/finetune2.pth"
         print("Loading ensemble model...")
