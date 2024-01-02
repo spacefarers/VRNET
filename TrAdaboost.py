@@ -47,7 +47,7 @@ def TrAdaboost(run_id=200, boosting_iters=20, cycles=1, tag="TrA"):
             config.log({"Boosting Iteration": boosting_iter})
             start_time = time()
             print(f"stage: {stage}")
-            weights = balance_weights(weights)
+            # weights = balance_weights(weights)
             train_loader = mixed_ds.get_data(fixed=True)
             fit_model(train_loader, weights)
             error = calc_error(train_loader)
