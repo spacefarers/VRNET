@@ -11,6 +11,7 @@ from torch import nn
 import os
 from matplotlib import pyplot as plt
 from time import time
+from pathlib import Path
 
 M = model.prep_model(model.Net())
 optimizer_G = torch.optim.Adam(M.parameters(), lr=1e-5, betas=(0.9, 0.999))
@@ -25,6 +26,7 @@ def TrAdaboost(run_id=200, boosting_iters=20, cycles=1, tag="TrA"):
     run_id = f"{config.run_id:03d}"
     experiment_dir = os.path.join(config.experiments_dir, run_id)
     inference_dir = experiment_dir + "/inference/"
+    Path(experiment_dir).mkdir(parents=True, exist_ok=True)
 
     source_ds = Dataset(config.source_dataset, config.source_var, "all")
     global source_len, stage
