@@ -11,9 +11,9 @@ machine = platform.node()
 # target_var = "640"
 
 source_dataset = 'half-cylinder'
-source_var = "320"
-target_dataset = 'half-cylinder'
-target_var = "640"
+source_var = "640"
+target_dataset = 'hurricane'
+target_var = "RAIN"
 
 # source_dataset = ["160", "320", "6400"]
 # pretrain_vars = ["RAIN", "WSMAG"]
@@ -106,6 +106,10 @@ def init_logging():
     params = {
         "learning_rate_generator": lr[0],
         "learning_rate_discriminator": lr[1],
+        "source_dataset": source_dataset,
+        "source_var": source_var,
+        "target_dataset": target_dataset,
+        "target_var": target_var,
     }
     log_obj["parameters"] = params
 
