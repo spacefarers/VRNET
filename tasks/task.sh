@@ -1,6 +1,6 @@
 #!/bin/bash
 # -M michael@yangm.tech
-#$ -q gpu@qa-p100-* -l gpu=4
+#$ -q gpu@qa-p100-* -l gpu=2
 
 # -l h=!(qa-p100-002|qa-p100-003)
 
