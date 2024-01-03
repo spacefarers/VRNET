@@ -9,7 +9,7 @@ from inference import infer_and_evaluate, save_plot
 def run(run_id=100, finetune1_epochs=20, finetune2_epochs=0, cycles=1, load_ensemble_model=False, tag="run", use_all_data=False, swap_source_target=False):
     print(f"Running {tag} {run_id}...")
     if tag == "run":
-        config.lr = (1e-4, 4e-4)
+        config.lr = (5e-5, 4e-5)
         config.tags.append("barebone" if cycles == 1 else "cycles")
     elif tag == "EN-FT":
         config.lr = (1e-6, 4e-6)
