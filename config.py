@@ -12,8 +12,8 @@ machine = platform.node()
 
 source_dataset = 'half-cylinder'
 source_var = "640"
-target_dataset = 'hurricane'
-target_var = "RAIN"
+target_dataset = 'vorts'
+target_var = "default"
 
 # source_dataset = ["160", "320", "6400"]
 # pretrain_vars = ["RAIN", "WSMAG"]
@@ -47,6 +47,7 @@ elif 'HomePC' in machine:
     root_data_dir = '/mnt/c/Users/spacefarers/data/'
     experiments_dir = '/mnt/c/Users/spacefarers/experiments/'
     processed_dir = '/mnt/c/Users/spacefarers/data/processed_data/'
+    enable_logging = True
     # batch_size = 2
 else:
     raise Exception("Unknown machine")
