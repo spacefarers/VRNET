@@ -8,6 +8,7 @@ import torch
 from torch.utils.data import DataLoader, ConcatDataset
 import config
 
+
 class Dataset:
     def __init__(self, dataset, selected_var, splice_strategy):
         self.dataset = dataset
@@ -45,7 +46,7 @@ class Dataset:
 
     def __len__(self):
         num_windows = len(self.splice_strategy) - config.interval - 1
-        return num_windows*config.crop_times
+        return num_windows * config.crop_times
 
     def prepare_data(self):
         source_data = []
@@ -106,14 +107,15 @@ class Dataset:
         data = torch.utils.data.TensorDataset(low_res_full, high_res_full)
         raw_loader = DataLoader(dataset=data, batch_size=config.batch_size)
         return raw_loader
+
     def get_augmented_data(self):
         self.load()
         num_windows = len(self.splice_strategy) - config.interval - 1
         low_res_full = np.zeros((config.crop_times * num_windows, config.interval + 2, config.crop_size[0], config.crop_size[1], config.crop_size[2]))
         high_res_full = np.zeros((
-                config.crop_times * num_windows, config.interval + 2, config.crop_size[0] * config.scale,
-                config.crop_size[1] * config.scale,
-                config.crop_size[2] * config.scale))
+            config.crop_times * num_windows, config.interval + 2, config.crop_size[0] * config.scale,
+            config.crop_size[1] * config.scale,
+            config.crop_size[2] * config.scale))
         idx = 0
         for t in range(num_windows):
             low_res_crop, high_res_crop = self.random_crop_data(
@@ -135,14 +137,14 @@ class Dataset:
         low_res_crop = []
         high_res_crop = []
         for _ in range(config.crop_times):
-            x = np.random.randint(0, self.dims[0] // config.scale - config.crop_size[0])
-            y = np.random.randint(0, self.dims[1] // config.scale - config.crop_size[1])
-            z = np.random.randint(0, self.dims[2] // config.scale - config.crop_size[2])
+            x = np.random.randint(0, self.dims[0] // config.scale - config.crop_size[0] + 1)
+            y = np.random.randint(0, self.dims[1] // config.scale - config.crop_size[1] + 1)
+            z = np.random.randint(0, self.dims[2] // config.scale - config.crop_size[2] + 1)
 
             low_res_crop.append(low_res_window[:, x:x + config.crop_size[0], y:y + config.crop_size[1], z:z + config.crop_size[2]])
             high_res_crop.append(high_res_window[:, x * config.scale:(x + config.crop_size[0]) * config.scale,
-                  config.scale * y:(y + config.crop_size[1]) * config.scale,
-                  config.scale * z:(z + config.crop_size[2]) * config.scale])
+                                 config.scale * y:(y + config.crop_size[1]) * config.scale,
+                                 config.scale * z:(z + config.crop_size[2]) * config.scale])
         return low_res_crop, high_res_crop
 
 
