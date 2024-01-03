@@ -12,7 +12,7 @@ machine = platform.node()
 
 source_dataset = 'half-cylinder'
 source_var = "640"
-target_dataset = 'vorts'
+target_dataset = "vorts"
 target_var = "default"
 
 # source_dataset = ["160", "320", "6400"]
