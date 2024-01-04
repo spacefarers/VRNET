@@ -357,7 +357,7 @@ class Net(nn.Module):
                                             nn.Conv3d(16 // 2, 1, 3, 1, 1)
                                             ])
 
-        self.domain_classifier = None
+        self.domain_classifier = AdvancedDomainClassifier()
 
     def forward(self, s, e, alpha=None):
         features = [self.s(s)]
@@ -366,10 +366,6 @@ class Net(nn.Module):
         features.append(self.s(e))
         domain_output = None
         if self.training and config.domain_backprop:
-            if self.domain_classifier is None:
-                print("Initializing domain classifier")
-                self.domain_classifier = AdvancedDomainClassifier()
-                self.domain_classifier.to(config.device)
             domain_input = []
             for i in features:
                 reverse_features = ReverseLayerF.apply(i, alpha)
@@ -408,7 +404,6 @@ def load_model(model, new_model):
     try:
         model.load_state_dict(new_model)
     except:
-        model.module.domain_classifier = DomainClassifier()
-        model.module.domain_classifier.to(config.device)
+        model.module.domain_classifier = None
         model.load_state_dict(new_model)
     return model
