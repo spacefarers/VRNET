@@ -117,7 +117,7 @@ class Dataset:
             config.crop_size[1] * config.scale,
             config.crop_size[2] * config.scale))
         idx = 0
-        for t in range(num_windows):
+        for t in tqdm(range(num_windows), desc="Augmenting data", leave=False):
             low_res_crop, high_res_crop = self.random_crop_data(
                 np.take(self.low_res, self.splice_strategy[t:t + config.interval + 2], axis=0),
                 np.take(self.high_res, self.splice_strategy[t:t + config.interval + 2], axis=0))

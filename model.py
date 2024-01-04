@@ -289,7 +289,7 @@ class ReverseLayerF(Function):
 
 class AdvancedDomainClassifier(nn.Module):
     def __init__(self):
-        super(DomainClassifier, self).__init__()
+        super(AdvancedDomainClassifier, self).__init__()
         self.conv1 = nn.Conv3d(64, 128, 4, 2, 1)
         self.bn1 = nn.BatchNorm3d(128)
         self.conv2 = nn.Conv3d(128, 256, 4, 2, 1)
@@ -323,7 +323,10 @@ class DomainClassifier(nn.Module):
                                           nn.Linear((config.interval + 2) * int(np.prod(config.crop_size)) * 64, 100))
         self.domain_classifier.add_module('relu1', nn.ReLU(True))
         self.domain_classifier.add_module('dpt1', nn.Dropout())
-        self.domain_classifier.add_module('fc2', nn.Linear(100, 1))
+        self.domain_classifier.add_module('fc2', nn.Linear(100, 100))
+        self.domain_classifier.add_module('relu2', nn.ReLU(True))
+        self.domain_classifier.add_module('dpt2', nn.Dropout())
+        self.domain_classifier.add_module('fc3', nn.Linear(100, 1))
 
     def forward(self, x):  # x.shape: [batch_size, frames: 4, 64, crop_size[0], crop_size[1], crop_size[2]]
         x = x.view(x.size(0), -1)  # Flatten the tensor
@@ -368,7 +371,9 @@ class Net(nn.Module):
         domain_output = None
         if self.training and config.domain_backprop:
             if self.domain_classifier is None:
-                self.domain_classifier = DomainClassifier()
+                print("Initializing domain classifier")
+                self.domain_classifier = AdvancedDomainClassifier()
+                self.domain_classifier.to(config.device)
             reverse_features = [ReverseLayerF.apply(i, alpha).unsqueeze(1) for i in features]
             domain_output = self.domain_classifier(torch.cat(reverse_features, dim=1))
         output = torch.cat([self.upscaler(i) for i in features], dim=1)

@@ -47,18 +47,18 @@ elif 'HomePC' in machine:
     root_data_dir = '/mnt/c/Users/spacefarers/data/'
     experiments_dir = '/mnt/c/Users/spacefarers/experiments/'
     processed_dir = '/mnt/c/Users/spacefarers/data/processed_data/'
-    enable_logging = True
+    # enable_logging = True
     # batch_size = 2
 else:
     raise Exception("Unknown machine")
 
-interval = 2
+interval = 0
 crop_times = 4
 # crop_times = 10
 # low_res_size for half-cylinder: [160, 60, 20]
 # low_res_size for hurricane: [125,125,25]
 # low_res_size for vorts: [32,32,32]
-crop_size = [32, 32, 32]  # must be multiples of 8 and smaller than low res size
+crop_size = [16,16,16]  # must be multiples of 8 and smaller than low res size
 scale = 4
 load_ensemble_model = False
 ensemble_path = experiments_dir + f"ensemble/{target_dataset}/ensemble.pth"
@@ -70,7 +70,7 @@ pretrain_epochs = 0
 finetune1_epochs = 10
 finetune2_epochs = 10
 
-train_data_split = 4  # number of datapoints used for training
+train_data_split = 2  # number of datapoints used for training
 
 run_cycle = None
 ensemble_iter = None
@@ -101,7 +101,7 @@ def init_logging():
     import keys
     log_obj = neptune.init_run(
         project="VRNET/VRNET",
-        api_token=keys.NEPTUNE_API_KEY,
+        api_token=keys.NEPTUNE_API_TOKEN,
         name=f'{run_id:03d} ({machine})',
         tags=tags,
     )

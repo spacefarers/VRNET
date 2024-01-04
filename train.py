@@ -55,54 +55,25 @@ class Trainer:
         finetune1_logs = {"loss": [], "domain_loss": [], "domain_accuracy": []}
         config.set_status("Finetune 1")
         source_dataset = None
-        if "DA" in config.tags:
-            source_dataset = dataset_io.Dataset(config.source_dataset, config.source_var, "train")
         for epoch in tqdm(range(config.finetune1_epochs), position=0, leave=False):
             target_loader = self.dataset.get_augmented_data()
-            source_loader = [None]*len(target_loader)
-            if source_dataset is not None:
-                source_loader = source_dataset.get_augmented_data()
-            train_length = min(len(source_loader),len(target_loader))
-            source_iter = iter(source_loader)
+            train_length = len(target_loader)
             target_iter = iter(target_loader)
-            source_out_loss = 0
-            source_label_loss = 0
-            target_out_loss = 0
-            target_label_loss = 0
             total_loss = 0
             for batch_idx in tqdm(range(train_length), position=1, leave=False):
                 self.optimizer_G.zero_grad()
                 p = float((batch_idx + epoch * train_length) / (config.finetune1_epochs * train_length))
                 alpha = 2. / (1. + np.exp(-10 * p)) - 1
-                source_out_err = source_label_err = target_label_err = 0
                 target_obj = next(target_iter)
                 target_low, target_high = target_obj
                 target_low = target_low.to(config.device)
                 target_high = target_high.to(config.device)
-                target_out, target_class = self.model(target_low[:, 0:1], target_low[:, -1:], alpha)
+                target_out, _ = self.model(target_low[:, 0:1], target_low[:, -1:], alpha)
                 target_out_err = self.criterion(target_out, target_high)
-                source_obj = next(source_iter)
-                if source_obj is not None:
-                    source_low, source_high = source_obj
-                    source_low = source_low.to(config.device)
-                    source_high = source_high.to(config.device)
-                    source_out, source_class = self.model(source_low[:, 0:1], source_low[:, -1:], alpha)
-                    source_out_err = self.criterion(source_out, source_high)
-                    source_label_err = self.domain_criterion(source_class, torch.ones(config.batch_size).to(config.device))
-                    target_label_err = self.domain_criterion(target_class, torch.zeros(config.batch_size).to(config.device))
-                    source_out_loss += source_out_err.mean().item()
-                    source_label_loss += source_label_err.mean().item()
-                    target_out_loss += target_out_err.mean().item()
-                    target_label_loss += target_label_err.mean().item()
-                error = source_out_err + source_label_err + target_out_err + target_label_err
+                error = target_out_err
                 total_loss += error.mean().item()
                 error.backward()
                 self.optimizer_G.step()
-            if "DA" in config.tags:
-                tqdm.write(f"Source Out L: {source_out_loss}")
-                tqdm.write(f"Source Label L: {source_label_loss}")
-                tqdm.write(f"Target Out L: {target_out_loss}")
-                tqdm.write(f"Target Label L: {target_label_loss}")
             finetune1_logs["loss"].append(total_loss)
             tqdm.write(f'FT1 loss: {total_loss}')
             config.log({"FT1 loss": total_loss})
