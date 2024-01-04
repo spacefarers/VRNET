@@ -298,7 +298,8 @@ class AdvancedDomainClassifier(nn.Module):
         self.bn3 = nn.BatchNorm3d(512)
         self.lstm = LSTMCell(512, 512, 3)
         self.fc1 = nn.Linear(int(np.prod(config.crop_size)), 1024)
-        self.fc2 = nn.Linear(1024, 1)  # choose between source and target
+        self.fc2 = nn.Linear(1024, 1)
+        self.sigmoid = nn.Sigmoid()
 
     def forward(self, x):  # x.shape: [batch_size, frames: 4, 64, crop_size[0], crop_size[1], crop_size[2]]
         h = None
@@ -311,7 +312,7 @@ class AdvancedDomainClassifier(nn.Module):
         x = h.view(h.size(0), -1)  # Flatten the tensor
         x = F.relu(self.fc1(x))
         x = self.fc2(x)
-        x = x.squeeze(1)
+        x = self.sigmoid(x).squeeze(1)
         return x
 
 
@@ -319,18 +320,13 @@ class DomainClassifier(nn.Module):
     def __init__(self):
         super(DomainClassifier, self).__init__()
         self.domain_classifier = nn.Sequential()
-        self.domain_classifier.add_module('fc1',
-                                          nn.Linear((config.interval + 2) * int(np.prod(config.crop_size)) * 64, 100))
-        self.domain_classifier.add_module('relu1', nn.ReLU(True))
-        self.domain_classifier.add_module('dpt1', nn.Dropout())
-        self.domain_classifier.add_module('fc2', nn.Linear(100, 100))
-        self.domain_classifier.add_module('relu2', nn.ReLU(True))
-        self.domain_classifier.add_module('dpt2', nn.Dropout())
-        self.domain_classifier.add_module('fc3', nn.Linear(100, 1))
+        self.domain_classifier.add_module('d_fc1',nn.Linear(int(np.prod(config.crop_size)) * 64, 100))
+        self.domain_classifier.add_module('d_relu1', nn.ReLU(True))
+        self.domain_classifier.add_module('d_fc2', nn.Linear(100, 2))
+        self.domain_classifier.add_module('d_softmax', nn.LogSoftmax(dim=1))
 
-    def forward(self, x):  # x.shape: [batch_size, frames: 4, 64, crop_size[0], crop_size[1], crop_size[2]]
-        x = x.view(x.size(0), -1)  # Flatten the tensor
-        return self.domain_classifier(x).squeeze(1)
+    def forward(self, x):  # x.shape: [batch_size, 64, crop_size[0], crop_size[1], crop_size[2]]
+        return self.domain_classifier(x)
 
 
 class Net(nn.Module):
@@ -374,8 +370,12 @@ class Net(nn.Module):
                 print("Initializing domain classifier")
                 self.domain_classifier = AdvancedDomainClassifier()
                 self.domain_classifier.to(config.device)
-            reverse_features = [ReverseLayerF.apply(i, alpha).unsqueeze(1) for i in features]
-            domain_output = self.domain_classifier(torch.cat(reverse_features, dim=1))
+            domain_input = []
+            for i in features:
+                reverse_features = ReverseLayerF.apply(i, alpha)
+                domain_input.append(reverse_features)
+            domain_input = torch.stack(domain_input, dim=1)
+            domain_output = self.domain_classifier(domain_input)
         output = torch.cat([self.upscaler(i) for i in features], dim=1)
         return output, domain_output
 

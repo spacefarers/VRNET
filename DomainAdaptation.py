@@ -46,7 +46,8 @@ def DomainAdaptation(run_id=200, source_iters=10, target_iters=10, tag="DA", dis
             vol_loss_total = label_correct = label_total_loss = 0
             for batch_idx, (low_res_source, high_res_source) in enumerate(tqdm(source_data, leave=False, desc="Source Training")):
                 p = float((batch_idx + source_iter * len(source_ds)) / (source_iters * len(source_ds)))
-                alpha = 2. / (1. + np.exp(-10 * p)) - 1
+                # alpha = 2. / (1. + np.exp(-10 * p)) - 1
+                alpha = 0
                 if batch_idx == 0:
                     print(alpha)
                 optimizer_G.zero_grad()
@@ -55,9 +56,10 @@ def DomainAdaptation(run_id=200, source_iters=10, target_iters=10, tag="DA", dis
                 target_low = next(target_data)[0].to(config.device)
                 pred_source, label_source = M(low_res_source[:, 0:1], low_res_source[:, -1:], alpha)
                 _, label_target = M(target_low[:, 0:1], target_low[:, -1:], alpha)
-                vol_loss = criterion(pred_source, high_res_source)
+                # vol_loss = criterion(pred_source, high_res_source)
+                vol_loss = 0
                 label_loss = domain_criterion(label_source, zeros) + domain_criterion(label_target, ones)
-                vol_loss_total += vol_loss.mean().item()
+                # vol_loss_total += vol_loss.mean().item()
                 label_correct += ((label_source < 0.5).sum() + (label_target > 0.5).sum()).item()
                 label_total_loss += label_loss.mean().item()
                 loss = vol_loss + label_loss
@@ -66,6 +68,7 @@ def DomainAdaptation(run_id=200, source_iters=10, target_iters=10, tag="DA", dis
             source_accuracy = label_correct / (len(source_ds) * 2)
             config.log({"Source Vol Loss": vol_loss_total, "Source Accuracy": source_accuracy, "Source Label Loss": label_total_loss})
         torch.save(M.state_dict(), f"{config.experiments_dir}/{config.run_id:03d}/source_trained.pth")
+        return
     # Phase 2: Train on target
     config.set_status("Target Training")
     # Freeze upper layers

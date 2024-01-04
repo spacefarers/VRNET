@@ -12,8 +12,8 @@ machine = platform.node()
 
 source_dataset = 'half-cylinder'
 source_var = "640"
-target_dataset = "vorts"
-target_var = "default"
+target_dataset = "hurricane"
+target_var = "RAIN"
 
 # source_dataset = ["160", "320", "6400"]
 # pretrain_vars = ["RAIN", "WSMAG"]
@@ -52,7 +52,7 @@ elif 'HomePC' in machine:
 else:
     raise Exception("Unknown machine")
 
-interval = 0
+interval = 2
 crop_times = 4
 # crop_times = 10
 # low_res_size for half-cylinder: [160, 60, 20]
@@ -70,7 +70,7 @@ pretrain_epochs = 0
 finetune1_epochs = 10
 finetune2_epochs = 10
 
-train_data_split = 2  # number of datapoints used for training
+train_data_split = 4  # number of datapoints used for training
 
 run_cycle = None
 ensemble_iter = None
