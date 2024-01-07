@@ -71,7 +71,7 @@ class Trainer:
                 target_out, _ = self.model(target_low[:, 0:1], target_low[:, -1:], alpha)
                 target_out_err = self.criterion(target_out, target_high)
                 error = target_out_err
-                total_loss += error.mean().item()
+                total_loss += error.sum().item()
                 error.backward()
                 self.optimizer_G.step()
             finetune1_logs["loss"].append(total_loss)

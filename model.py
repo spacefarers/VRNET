@@ -278,12 +278,22 @@ class ReverseLayerF(Function):
     @staticmethod
     def forward(ctx, x, alpha):
         ctx.alpha = alpha
-
         return x.view_as(x)
 
     @staticmethod
     def backward(ctx, grad_output):
         output = grad_output.neg() * ctx.alpha
+        return output, None
+
+class ApplyAlpha(Function):
+    @staticmethod
+    def forward(ctx, x, alpha):
+        ctx.alpha = alpha
+        return x
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        output = grad_output * ctx.alpha
         return output, None
 
 
@@ -319,14 +329,25 @@ class AdvancedDomainClassifier(nn.Module):
 class DomainClassifier(nn.Module):
     def __init__(self):
         super(DomainClassifier, self).__init__()
-        self.domain_classifier = nn.Sequential()
-        self.domain_classifier.add_module('d_fc1',nn.Linear(int(np.prod(config.crop_size)) * 64, 100))
-        self.domain_classifier.add_module('d_relu1', nn.ReLU(True))
-        self.domain_classifier.add_module('d_fc2', nn.Linear(100, 2))
-        self.domain_classifier.add_module('d_softmax', nn.LogSoftmax(dim=1))
+        self.conv1 = nn.Conv3d(64, 128, 4, 2, 1)
+        self.conv2 = nn.Conv3d(128, 256, 4, 2, 1)
+        self.conv3 = nn.Conv3d(256, 512, 4, 2, 1)
+        self.fc1 = nn.Linear(int(np.prod(config.crop_size)), 10)
+        self.fc2=nn.Linear(10,1)
+        self.sigmoid = nn.Sigmoid()
 
-    def forward(self, x):  # x.shape: [batch_size, 64, crop_size[0], crop_size[1], crop_size[2]]
-        return self.domain_classifier(x)
+    def forward(self, x):  # x.shape: [batch_size, frames: 4, 64, crop_size[0], crop_size[1], crop_size[2]]
+        results = []
+        for t in range(x.shape[1]):
+            f = F.relu(self.conv1(x[:, t, :, :, :, :]))
+            f = F.relu(self.conv2(f))
+            f = F.relu(self.conv3(f))
+            f = f.view(f.size(0), -1)
+            f = F.relu(self.fc1(f))
+            f = self.sigmoid(self.fc2(f)).squeeze(1)
+            results.append(f)
+        x = torch.mean(torch.stack(results, dim=1),dim=1)
+        return x
 
 
 class Net(nn.Module):
@@ -357,24 +378,32 @@ class Net(nn.Module):
                                             nn.Conv3d(16 // 2, 1, 3, 1, 1)
                                             ])
 
-        self.domain_classifier = AdvancedDomainClassifier()
+        self.domain_classifier = DomainClassifier()
 
-    def forward(self, s, e, alpha=None):
+    def forward(self, s, e, alpha_forward=1, alpha_reverse=1):
+        self.s = ApplyAlpha.apply(self.s, alpha_forward)
         features = [self.s(s)]
         for k in range(0, self.interval):
+            self.t._modules['temporal' + str(k + 1)] = ApplyAlpha.apply(self.t._modules['temporal' + str(k + 1)], alpha_forward)
             features.append(self.t._modules['temporal' + str(k + 1)](torch.cat((s, e), dim=1)))
         features.append(self.s(e))
         domain_output = None
         if self.training and config.domain_backprop:
             domain_input = []
             for i in features:
-                reverse_features = ReverseLayerF.apply(i, alpha)
+                reverse_features = ReverseLayerF.apply(i, alpha_reverse)
                 domain_input.append(reverse_features)
             domain_input = torch.stack(domain_input, dim=1)
             domain_output = self.domain_classifier(domain_input)
         output = torch.cat([self.upscaler(i) for i in features], dim=1)
         return output, domain_output
 
+def weight_reset(m):
+    for layer in m.children():
+        if hasattr(layer, "reset_parameters"):
+            layer.reset_parameters()
+        else:
+            weight_reset(layer)
 
 def prep_model(model):
     model = model.to(config.device)
@@ -401,9 +430,12 @@ class MetaClassifier(nn.Module):
 
 
 def load_model(model, new_model):
-    try:
-        model.load_state_dict(new_model)
-    except:
-        model.module.domain_classifier = None
-        model.load_state_dict(new_model)
+    s = model.state_dict()
+    for k in list(new_model.keys()):
+        if k not in s:
+            new_model.pop(k)
+    for k in list(s.keys()):
+        if k not in new_model or s[k].size() != new_model[k].size():
+            new_model[k] = s[k]
+    model.load_state_dict(new_model)
     return model

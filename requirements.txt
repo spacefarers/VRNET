@@ -8,3 +8,5 @@ torchvision
 torchview
 torchviz
 neptune
+neptune-optuna
+optuna

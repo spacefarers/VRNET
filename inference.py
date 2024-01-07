@@ -48,7 +48,7 @@ def infer_and_evaluate(model, inference_dir=None, write_to_file=False, experimen
     end_time = time.time()
     time_cost = end_time - start_time
     print('Inference time cost', time_cost, 's')
-    PSNR = np.mean(PSNR_list)
+    PSNR = np.mean(PSNR_list[config.train_data_split:])
     inference_logs = {"time_cost": time_cost, "PSNR": PSNR, "PSNR_list": PSNR_list}
     if write_to_file:
         with open(experiments_dir + '/inference.json', 'w') as f:

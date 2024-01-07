@@ -38,6 +38,8 @@ class Dataset:
             self.splice_strategy = train_splice
         elif splice_strategy == "all":
             self.splice_strategy = all_splice
+        elif splice_strategy == '20':
+            self.splice_strategy = list(range(0,20))
         else:
             raise ValueError("Invalid splice strategy")
 
