@@ -53,7 +53,6 @@ def infer_and_evaluate(model, inference_dir=None, write_to_file=False, experimen
     if write_to_file:
         with open(experiments_dir + '/inference.json', 'w') as f:
             json.dump(inference_logs, f, indent=4)
-    config.log({"PSNR": PSNR})
     return PSNR, PSNR_list
 
 

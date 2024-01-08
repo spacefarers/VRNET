@@ -87,8 +87,9 @@ def DomainAdaptation(run_id=220, source_iters=100, target_iters=100, tag="DA", l
             config.log({"Source Vol Loss": vol_loss_total/len(source_ds), "Source Accuracy": source_accuracy, "Source Label Loss": label_total_loss/len(source_ds), "Alpha Rev": alpha_reverse})
             torch.save(M.state_dict(), f"{experiment_dir}/source_trained.pth")
             if source_iter % source_evaluate_every == 1:
-                infer_and_evaluate(M)
-                infer_and_evaluate(M, data=source_eval)
+                PSNR_target, _ = infer_and_evaluate(M)
+                PSNR_source, _ = infer_and_evaluate(M, data=source_eval)
+                config.log({"Source PSNR": PSNR_source, "Target PSNR": PSNR_target})
     else:
         # Evaluate source training efficiency
         # PSNR, PSNR_list = infer_and_evaluate(M, write_to_file=False, data=source_ds)
