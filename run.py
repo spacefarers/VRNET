@@ -9,7 +9,7 @@ from inference import infer_and_evaluate, save_plot
 def run(run_id=15, finetune1_epochs=20, finetune2_epochs=0, cycles=5, load_ensemble_model=False, tag="run", use_all_data=False, swap_source_target=False):
     print(f"Running {tag} {run_id}...")
     if tag == "run":
-        config.lr = (1e-5, 4e-5)
+        config.lr = (1e-4, 4e-4)
         config.tags.append("barebone" if cycles == 1 else "cycles")
     elif tag == "EN-FT":
         config.lr = (1e-6, 4e-6)
@@ -40,7 +40,6 @@ def run(run_id=15, finetune1_epochs=20, finetune2_epochs=0, cycles=5, load_ensem
         PSNR, PSNR_list = infer_and_evaluate(T.model, write_to_file=False if cycle != cycles else True, inference_dir=T.inference_dir, experiments_dir=T.experiment_dir)
         config.log({"PSNR": PSNR})
         save_plot(PSNR, PSNR_list, T.experiment_dir, run_cycle=cycle)
-        print(f"Cycle {cycle} PSNR: {PSNR}")
     config.set_status("Succeeded")
 
 
