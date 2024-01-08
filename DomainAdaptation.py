@@ -17,7 +17,7 @@ def DomainAdaptation(run_id=220, source_iters=100, target_iters=100, tag="DA", l
     print(f"Running {tag} {run_id}...")
     config.domain_backprop = True
     M = model.prep_model(model.Net())
-    optimizer_G = torch.optim.Adam(M.parameters(), lr=1e-5, betas=(0.9, 0.999))
+    optimizer_G = torch.optim.Adam(M.parameters(), lr=1e-4, betas=(0.9, 0.999))
     config.tags.append(tag)
     config.run_id = run_id
     run_id = f"{config.run_id:03d}"
