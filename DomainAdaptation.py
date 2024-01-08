@@ -77,14 +77,14 @@ def DomainAdaptation(run_id=220, source_iters=100, target_iters=100, tag="DA", l
                 loss.backward()
                 optimizer_G.step()
             source_accuracy = label_correct / (len(source_ds) * 2 * (config.interval+2))
-            if label_total_loss/len(source_ds)>0.99:
+            if label_total_loss/len(source_data)>0.99:
                 for mod in next(iter(M.children())).children():
                     if isinstance(mod, model.DomainClassifier):
                         model.weight_reset(mod)
                 alpha_reverse = 0
             else:
-                alpha_reverse = (1-label_total_loss/len(source_ds))
-            config.log({"Source Vol Loss": vol_loss_total/len(source_ds), "Source Accuracy": source_accuracy, "Source Label Loss": label_total_loss/len(source_ds), "Alpha Rev": alpha_reverse})
+                alpha_reverse = (1-label_total_loss/len(source_data))*1e-3
+            config.log({"Source Vol Loss": vol_loss_total/len(source_data), "Source Accuracy": source_accuracy, "Source Label Loss": label_total_loss/len(source_data), "Alpha Rev": alpha_reverse})
             torch.save(M.state_dict(), f"{experiment_dir}/source_trained.pth")
             if source_iter % source_evaluate_every == 1:
                 PSNR_target, _ = infer_and_evaluate(M)

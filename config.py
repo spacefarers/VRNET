@@ -50,7 +50,7 @@ elif 'HomePC' in machine:
     experiments_dir = '/mnt/c/Users/spacefarers/experiments/'
     processed_dir = '/mnt/c/Users/spacefarers/data/processed_data/'
     # enable_logging = True
-    # batch_size = 2
+    batch_size = 2
 else:
     raise Exception("Unknown machine")
 
