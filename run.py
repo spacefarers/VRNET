@@ -38,6 +38,7 @@ def run(run_id=15, finetune1_epochs=20, finetune2_epochs=0, cycles=5, load_ensem
         print(f"Cycle {cycle}/{cycles}:")
         T.train(disable_jump=True if cycle > 1 else False)
         PSNR, PSNR_list = infer_and_evaluate(T.model, write_to_file=False if cycle != cycles else True, inference_dir=T.inference_dir, experiments_dir=T.experiment_dir)
+        config.log({"PSNR": PSNR})
         save_plot(PSNR, PSNR_list, T.experiment_dir, run_cycle=cycle)
         print(f"Cycle {cycle} PSNR: {PSNR}")
     config.set_status("Succeeded")
