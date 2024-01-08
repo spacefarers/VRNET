@@ -35,8 +35,10 @@ if 'PowerPC' in machine:
 elif 'crc' in machine:
     machine = 'CRC'
     root_data_dir = '/afs/crc.nd.edu/user/m/myang9/data/'
-    experiments_dir = '/scratch365/myang9/experiments/'
-    processed_dir = "/scratch365/myang9/processed_data/"
+    # experiments_dir = '/scratch365/myang9/experiments/'
+    # processed_dir = "/scratch365/myang9/processed_data/"
+    experiments_dir = '/afs/crc.nd.edu/user/m/myang9/experiments/'
+    processed_dir = "/afs/crc.nd.edu/user/m/myang9/data/processed_data"
     # batch_size = 2
     enable_logging = True
 elif 'MacBook' in machine or 'mbp' in machine:
