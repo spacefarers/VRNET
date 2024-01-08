@@ -17,7 +17,7 @@ def infer_and_evaluate(model, inference_dir=None, write_to_file=False, experimen
     if write_to_file:
         Path(inference_dir).mkdir(parents=True, exist_ok=True)
     model.eval()
-    print('=======Inference========')
+    tqdm.write('=======Inference========')
     config.set_status("Inferring")
     if data is None:
         data = Dataset(config.target_dataset, config.target_var, "all")
@@ -47,7 +47,7 @@ def infer_and_evaluate(model, inference_dir=None, write_to_file=False, experimen
                             format='<f')
     end_time = time.time()
     time_cost = end_time - start_time
-    print('Inference time cost', time_cost, 's')
+    tqdm.write(f'Inference time cost: {time_cost} s')
     PSNR = np.mean(PSNR_list[config.train_data_split:])
     inference_logs = {"time_cost": time_cost, "PSNR": PSNR, "PSNR_list": PSNR_list}
     if write_to_file:

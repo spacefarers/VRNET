@@ -137,9 +137,9 @@ class D(nn.Module):
         for i in range(num):
             f = F.relu(self.conv1(x[:, i:i + 1, :, :, :, ]))
             f = F.relu(self.conv2(f))
-            # h, c = self.lstm(f, h, c)
-            # f = self.conv3(h)
-            f = self.conv3(f)
+            h, c = self.lstm(f, h, c)
+            f = self.conv3(h)
+            # f = self.conv3(f)
             f = F.avg_pool3d(f, f.size()[2:]).view(-1)
             comps.append(f)
         comps = torch.stack(comps)
@@ -346,7 +346,7 @@ class DomainClassifier(nn.Module):
             f = F.relu(self.fc1(f))
             f = self.sigmoid(self.fc2(f)).squeeze(1)
             results.append(f)
-        x = torch.mean(torch.stack(results, dim=1),dim=1)
+        x = torch.stack(results, dim=1)
         return x
 
 
@@ -379,6 +379,7 @@ class Net(nn.Module):
                                             ])
 
         self.domain_classifier = DomainClassifier()
+        self.temporal_modifier = RDB((config.interval+2)*64, (config.interval+2)*64)
 
     def forward(self, s, e, alpha_forward=1, alpha_reverse=1):
         self.s = ApplyAlpha.apply(self.s, alpha_forward)
@@ -387,6 +388,9 @@ class Net(nn.Module):
             self.t._modules['temporal' + str(k + 1)] = ApplyAlpha.apply(self.t._modules['temporal' + str(k + 1)], alpha_forward)
             features.append(self.t._modules['temporal' + str(k + 1)](torch.cat((s, e), dim=1)))
         features.append(self.s(e))
+        # features = torch.cat(features, dim=1)
+        # features = self.temporal_modifier(features)
+        # features = torch.split(features, 64, dim=1)
         domain_output = None
         if self.training and config.domain_backprop:
             domain_input = []

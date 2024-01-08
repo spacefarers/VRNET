@@ -90,7 +90,7 @@ def seed_everything(seed=42):
     torch.backends.cudnn.deterministic = True
 
 
-seed_everything()
+# seed_everything()
 log_obj = None
 
 
