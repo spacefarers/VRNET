@@ -70,7 +70,7 @@ class Trainer:
                 target_out, _, restorer_output = self.model(target_low[:, 0:1], target_low[:, -1:])
                 target_out_err = self.criterion(target_out, target_high)
                 error = torch.tensor(0, device=config.device, dtype=torch.float32)
-                # error += target_out_err
+                error += target_out_err
                 total_loss += error.mean().item()
                 if config.enable_restorer:
                     restorer_loss = self.criterion(restorer_output, target_low)
