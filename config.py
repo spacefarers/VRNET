@@ -49,7 +49,7 @@ elif 'HomePC' in machine:
     root_data_dir = '/mnt/c/Users/spacefarers/data/'
     experiments_dir = '/mnt/c/Users/spacefarers/experiments/'
     processed_dir = '/mnt/c/Users/spacefarers/data/processed_data/'
-    enable_logging = True
+    # enable_logging = True
     # batch_size = 2
 else:
     raise Exception("Unknown machine")
@@ -77,7 +77,7 @@ train_data_split = 18  # number of datapoints used for training
 run_cycle = None
 ensemble_iter = None
 logging_init = False
-enable_restorer = True
+enable_restorer = False
 
 print("Machine is", machine)
 print(f"Running on {device} with batch size {batch_size}")
@@ -105,7 +105,7 @@ def init_logging():
     log_obj = neptune.init_run(
         project="VRNET/VRNET",
         api_token=keys.NEPTUNE_API_TOKEN,
-        name=f'{run_id:03d} ({machine})',
+        id=f'{run_id:03d}-{machine}',
         tags=tags,
     )
     params = {

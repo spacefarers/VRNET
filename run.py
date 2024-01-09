@@ -6,7 +6,7 @@ import fire
 from inference import infer_and_evaluate, save_plot
 
 
-def run(run_id=15, finetune1_epochs=20, finetune2_epochs=0, cycles=20, load_ensemble_model=False, tag="run", use_all_data=False, swap_source_target=False, use_restorer=False):
+def run(run_id=15, finetune1_epochs=20, finetune2_epochs=0, cycles=20, load_ensemble_model=False, tag="run", use_all_data=False, swap_source_target=False, use_restorer=True):
     print(f"Running {tag} {run_id}...")
     if tag == "run":
         config.lr = (1e-4, 4e-4)
@@ -39,7 +39,8 @@ def run(run_id=15, finetune1_epochs=20, finetune2_epochs=0, cycles=20, load_ense
     for cycle in range(1, cycles + 1):
         print(f"Cycle {cycle}/{cycles}:")
         T.train(disable_jump=True if cycle > 1 else False)
-        target_PSNR, _ = infer_and_evaluate(T.model)
+        target_PSNR, target_PSNR_list = infer_and_evaluate(T.model)
+        save_plot(target_PSNR, target_PSNR_list, T.experiment_dir, run_cycle=cycle)
         config.log({"target_PSNR": target_PSNR})
         if swap_source_target:
             source_PSNR, _ = infer_and_evaluate(T.model, data=source_eval)

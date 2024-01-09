@@ -396,10 +396,12 @@ class Net(nn.Module):
             # nn.ReLU(),
             # nn.Conv3d(in_channels=16, out_channels=1, kernel_size=1, bias=True),
             # nn.ReLU(),
-            RDB(64,64),
-            RDB(64,32),
-            RDB(32, 16),
-            RDB(16, 1)
+            # RDB(64,64),
+            # RDB(64,32),
+            # RDB(32, 16),
+            # RDB(16, 1)
+            nn.Conv3d(64, 32, kernel_size=3, stride=1, padding=1),
+            nn.Conv3d(32, 1, kernel_size=3, stride=1, padding=1),
         ])
 
     def forward(self, s, e, alpha_forward=1, alpha_reverse=1):
