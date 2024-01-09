@@ -6,7 +6,7 @@ import fire
 from inference import infer_and_evaluate, save_plot
 
 
-def run(run_id=15, finetune1_epochs=20, finetune2_epochs=0, cycles=5, load_ensemble_model=False, tag="run", use_all_data=False, swap_source_target=False, use_restorer=False):
+def run(run_id=15, finetune1_epochs=20, finetune2_epochs=0, cycles=20, load_ensemble_model=False, tag="run", use_all_data=False, swap_source_target=False, use_restorer=False):
     print(f"Running {tag} {run_id}...")
     if tag == "run":
         config.lr = (1e-4, 4e-4)
