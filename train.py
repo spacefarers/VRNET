@@ -67,7 +67,7 @@ class Trainer:
                 target_low, target_high = target_obj
                 target_low = target_low.to(config.device)
                 target_high = target_high.to(config.device)
-                target_out, _, restorer_output = self.model(target_low[:, 0:1], target_low[:, -1:])
+                target_out, _, restorer_output = self.model(target_low[:, 0:1], target_low[:, -1:],alpha)
                 target_out_err = self.criterion(target_out, target_high)
                 error = torch.tensor(0, device=config.device, dtype=torch.float32)
                 error += target_out_err
