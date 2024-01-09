@@ -7,6 +7,6 @@
 
 conda activate ml
 
-python3 ../DomainAdaptation.py --run_id=$SGE_TASK_ID --source_iters=100
+python3 ../DomainAdaptation.py --run_id=$SGE_TASK_ID --stage="source"
 
 # qsub -t 200 DA.sh
