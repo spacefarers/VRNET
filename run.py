@@ -39,7 +39,9 @@ def run(run_id=15, finetune1_epochs=20, finetune2_epochs=0, cycles=5, load_ensem
         print(f"Cycle {cycle}/{cycles}:")
         T.train(disable_jump=True if cycle > 1 else False)
         target_PSNR, _ = infer_and_evaluate(T.model)
+        config.log({"target_PSNR": target_PSNR})
         source_PSNR, _ = infer_and_evaluate(T.model, data=source_eval)
+        config.log({"source_PSNR": source_PSNR})
     config.set_status("Succeeded")
 
 
