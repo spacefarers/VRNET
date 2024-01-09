@@ -54,12 +54,11 @@ class Trainer:
         time_start = time.time()
         finetune1_logs = {"loss": [], "domain_loss": [], "domain_accuracy": []}
         config.set_status("Finetune 1")
-        source_dataset = None
         for epoch in tqdm(range(config.finetune1_epochs), position=0, leave=False):
             target_loader = self.dataset.get_augmented_data()
             train_length = len(target_loader)
             target_iter = iter(target_loader)
-            total_loss = 0
+            total_loss = total_restorer_loss = 0
             for batch_idx in tqdm(range(train_length), position=1, leave=False):
                 self.optimizer_G.zero_grad()
                 p = float((batch_idx + epoch * train_length) / (config.finetune1_epochs * train_length))
@@ -68,15 +67,18 @@ class Trainer:
                 target_low, target_high = target_obj
                 target_low = target_low.to(config.device)
                 target_high = target_high.to(config.device)
-                target_out, _ = self.model(target_low[:, 0:1], target_low[:, -1:], alpha)
+                target_out, _, restorer_output = self.model(target_low[:, 0:1], target_low[:, -1:], alpha)
                 target_out_err = self.criterion(target_out, target_high)
                 error = target_out_err
-                total_loss += error.sum().item()
+                if config.enable_restorer:
+                    restorer_loss = self.criterion(restorer_output, target_low)
+                    total_restorer_loss += restorer_loss.mean().item()
+                    error += restorer_loss
+                total_loss += error.mean().item()
                 error.backward()
                 self.optimizer_G.step()
-            finetune1_logs["loss"].append(total_loss)
-            tqdm.write(f'FT1 loss: {total_loss}')
-            config.log({"FT1 loss": total_loss})
+            finetune1_logs["loss"].append(total_loss/train_length)
+            config.log({"FT1 loss": total_loss/train_length, "FT1 restorer loss": total_restorer_loss/train_length})
         time_end = time.time()
         finetune1_time_cost = time_end - time_start
         finetune1_logs["time_cost"] = finetune1_time_cost

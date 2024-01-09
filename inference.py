@@ -26,7 +26,7 @@ def infer_and_evaluate(model, inference_dir=None, write_to_file=False, experimen
             tqdm(data.get_raw_data(), desc=f"Inferring {data.dataset}-{data.selected_var}",leave=False)):
         low_res_window = low_res_window.to(config.device)
         with torch.no_grad():
-            pred, _ = model(low_res_window[:, 0:1], low_res_window[:, -1:])
+            pred, _, _ = model(low_res_window[:, 0:1], low_res_window[:, -1:])
             pred = pred.detach().cpu().numpy()
             for batch_num in range(pred.shape[0]):
                 for j in range(0 if ind + batch_num == 0 else 1, config.interval + 2):

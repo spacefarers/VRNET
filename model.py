@@ -381,6 +381,27 @@ class Net(nn.Module):
         self.domain_classifier = DomainClassifier()
         self.temporal_modifier = RDB((config.interval+2)*64, (config.interval+2)*64)
 
+        self.restorer = nn.Sequential(*[
+            # nn.ConvTranspose3d(in_channels=64, out_channels=32, kernel_size=3, stride=2, padding=1, output_padding=1, dilation=1),
+            # nn.ReLU(),
+            # nn.Conv3d(in_channels=32, out_channels=32, kernel_size=3, padding=1, bias=True),
+            # nn.ReLU(),
+            # nn.Conv3d(in_channels=32, out_channels=32, kernel_size=3, padding=1, bias=True),
+            # nn.ReLU(),
+            # nn.ConvTranspose3d(in_channels=32, out_channels=16, kernel_size=3, stride=2, padding=1, output_padding=1, dilation=1),
+            # nn.ReLU(),
+            # nn.Conv3d(in_channels=16, out_channels=16, kernel_size=3, padding=1, bias=True),
+            # nn.ReLU(),
+            # nn.Conv3d(in_channels=16, out_channels=16, kernel_size=3, padding=1, bias=True),
+            # nn.ReLU(),
+            # nn.Conv3d(in_channels=16, out_channels=1, kernel_size=1, bias=True),
+            # nn.ReLU(),
+            RDB(64,64),
+            RDB(64,32),
+            RDB(32, 16),
+            RDB(16, 1)
+        ])
+
     def forward(self, s, e, alpha_forward=1, alpha_reverse=1):
         self.s = ApplyAlpha.apply(self.s, alpha_forward)
         features = [self.s(s)]
@@ -399,8 +420,11 @@ class Net(nn.Module):
                 domain_input.append(reverse_features)
             domain_input = torch.stack(domain_input, dim=1)
             domain_output = self.domain_classifier(domain_input)
+        restorer_output = None
+        if self.training and config.enable_restorer:
+            restorer_output = torch.cat([self.restorer(i) for i in features], dim=1)
         output = torch.cat([self.upscaler(i) for i in features], dim=1)
-        return output, domain_output
+        return output, domain_output, restorer_output
 
 def weight_reset(m):
     for layer in m.children():

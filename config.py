@@ -49,8 +49,8 @@ elif 'HomePC' in machine:
     root_data_dir = '/mnt/c/Users/spacefarers/data/'
     experiments_dir = '/mnt/c/Users/spacefarers/experiments/'
     processed_dir = '/mnt/c/Users/spacefarers/data/processed_data/'
-    # enable_logging = True
-    batch_size = 2
+    enable_logging = True
+    # batch_size = 2
 else:
     raise Exception("Unknown machine")
 
@@ -72,11 +72,12 @@ pretrain_epochs = 0
 finetune1_epochs = 10
 finetune2_epochs = 10
 
-train_data_split = 4  # number of datapoints used for training
+train_data_split = 10  # number of datapoints used for training
 
 run_cycle = None
 ensemble_iter = None
 logging_init = False
+enable_restorer = True
 
 print("Machine is", machine)
 print(f"Running on {device} with batch size {batch_size}")
