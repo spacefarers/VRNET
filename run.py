@@ -25,7 +25,7 @@ def run(run_id=15, finetune1_epochs=20, finetune2_epochs=0, cycles=5, load_ensem
     if swap_source_target:
         target_dataset = config.source_dataset
         target_var = config.source_var
-    dataset_io = Dataset(target_dataset, target_var, "20" if use_all_data else "train")
+    dataset_io = Dataset(target_dataset, target_var, "all" if use_all_data else "train")
     if config.load_ensemble_model:
         config.ensemble_path = config.experiments_dir + f"{(run_id - 100):03d}/finetune2.pth"
         print("Loading ensemble model...")

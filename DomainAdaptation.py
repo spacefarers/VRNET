@@ -24,8 +24,7 @@ def DomainAdaptation(run_id=220, source_iters=100, target_iters=100, tag="DA", l
     experiment_dir = os.path.join(config.experiments_dir, run_id)
     inference_dir = experiment_dir + "/inference/"
     Path(experiment_dir).mkdir(parents=True, exist_ok=True)
-    source_ds = Dataset(config.source_dataset, config.source_var, "20")
-    source_eval = Dataset(config.source_dataset, config.source_var, "all")
+    source_ds = Dataset(config.source_dataset, config.source_var, "all")
     target_ds = Dataset(config.target_dataset, config.target_var, "train")
     source_evaluate_every = 5
     target_evaluate_every = 20
@@ -88,7 +87,7 @@ def DomainAdaptation(run_id=220, source_iters=100, target_iters=100, tag="DA", l
             torch.save(M.state_dict(), f"{experiment_dir}/source_trained.pth")
             if source_iter % source_evaluate_every == 1:
                 PSNR_target, _ = infer_and_evaluate(M)
-                PSNR_source, _ = infer_and_evaluate(M, data=source_eval)
+                PSNR_source, _ = infer_and_evaluate(M, data=source_ds)
                 config.log({"Source PSNR": PSNR_source, "Target PSNR": PSNR_target})
     else:
         # Evaluate source training efficiency
