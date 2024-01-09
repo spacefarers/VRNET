@@ -34,12 +34,12 @@ def run(run_id=15, finetune1_epochs=20, finetune2_epochs=0, cycles=5, load_ensem
     M = model.prep_model(model.Net())
     D = model.prep_model(model.D())
     T = train.Trainer(dataset_io, M, D)
+    source_eval = Dataset(config.source_dataset, config.source_var, "all")
     for cycle in range(1, cycles + 1):
         print(f"Cycle {cycle}/{cycles}:")
         T.train(disable_jump=True if cycle > 1 else False)
-        PSNR, PSNR_list = infer_and_evaluate(T.model, write_to_file=False if cycle != cycles else True, inference_dir=T.inference_dir, experiments_dir=T.experiment_dir)
-        config.log({"PSNR": PSNR})
-        save_plot(PSNR, PSNR_list, T.experiment_dir, run_cycle=cycle)
+        target_PSNR, _ = infer_and_evaluate(T.model)
+        source_PSNR, _ = infer_and_evaluate(T.model, data=source_eval)
     config.set_status("Succeeded")
 
 
