@@ -13,10 +13,9 @@ from pathlib import Path
 
 label_weight = 1
 
-def DomainAdaptation(run_id=300, source_iters=100, target_iters=100, tag="DA", load_model=True, stage="source"):
+def DomainAdaptation(run_id=220, source_iters=100, target_iters=100, tag="DA", load_model=True, stage="source"):
     print(f"Running {tag} {run_id}...")
-    config.domain_backprop = False
-    config.enable_restorer = True
+    config.domain_backprop = True
     M = model.prep_model(model.Net())
     optimizer_G = torch.optim.Adam(M.parameters(), lr=1e-4, betas=(0.9, 0.999))
     config.tags.append(tag)
@@ -42,6 +41,8 @@ def DomainAdaptation(run_id=300, source_iters=100, target_iters=100, tag="DA", l
             print("Model loaded")
         # Phase 1: Train on source
         config.set_status("Source Training")
+        alpha_forward = 1
+        alpha_reverse = 1e-3
         for source_iter in tqdm(range(source_iters),leave=False,desc="Source Training", position=0):
             tqdm.write("-" * 20)
             source_data = source_ds.get_augmented_data()
@@ -49,27 +50,41 @@ def DomainAdaptation(run_id=300, source_iters=100, target_iters=100, tag="DA", l
             config.crop_times *= math.ceil(len(source_ds) / len(target_ds))
             target_data = iter(target_ds.get_augmented_data())
             config.crop_times = bp_crop_times
-            vol_loss_total = target_restore_total_loss = 0
+            vol_loss_total = label_correct = label_total_loss = 0
             M.train()
             for batch_idx, (low_res_source, high_res_source) in enumerate(tqdm(source_data, leave=False, desc="Source Iters", position=1)):
                 optimizer_G.zero_grad()
+                # p = float((batch_idx + source_iter * len(source_ds)) / (source_iters * len(source_ds)))
+                # alpha = 2. / (1. + np.exp(-10 * p)) - 1
                 low_res_source = low_res_source.to(config.device)
                 high_res_source = high_res_source.to(config.device)
                 target_low = next(target_data)[0].to(config.device)
+                # target_low = torch.zeros(config.batch_size, 2, *config.crop_size).to(config.device)
 
-                pred_source, _, _ = M(low_res_source[:, 0:1], low_res_source[:, -1:])
-                _, _, target_restore = M(target_low[:, 0:1], target_low[:, -1:])
+                pred_source, label_source = M(low_res_source[:, 0:1], low_res_source[:, -1:], alpha_forward, alpha_reverse)
+                _, label_target = M(target_low[:, 0:1], target_low[:, -1:], alpha_forward, alpha_reverse)
                 optimizer_G.zero_grad()
 
                 vol_loss = criterion(pred_source, high_res_source)
-                target_restore_loss = criterion(target_restore, target_low)
-                target_restore_total_loss += target_restore_loss.mean().item()
+                label_loss = domain_criterion(label_source, torch.zeros(label_source.size()).to(config.device)) + domain_criterion(label_target, torch.ones(label_target.size()).to(config.device))
                 vol_loss_total += vol_loss.mean().item()
-
-                loss = vol_loss + target_restore_loss
+                label_correct += ((label_source <= 0.5).sum() + (label_target > 0.5).sum()).item()
+                label_total_loss += label_loss.mean().item()
+                loss = vol_loss + label_weight*label_loss
+                # loss = label_loss
+                # loss = vol_loss
                 loss.backward()
                 optimizer_G.step()
-            config.log({"Source Vol Loss": vol_loss_total/len(source_data), "Source Target Restore Loss": target_restore_total_loss/len(source_data)})
+            source_accuracy = label_correct / (len(source_ds) * 2 * (config.interval+2))
+            if label_total_loss/len(source_data)>0.99:
+                alpha_reverse = 0
+            else:
+                alpha_reverse = (1-label_total_loss/len(source_data))
+
+            for mod in next(iter(M.children())).children():
+                if isinstance(mod, model.DomainClassifier):
+                    model.weight_reset(mod)
+            config.log({"Source Vol Loss": vol_loss_total/len(source_data), "Source Accuracy": source_accuracy, "Source Label Loss": label_total_loss/len(source_data), "Alpha Rev": alpha_reverse})
             torch.save(M.state_dict(), f"{experiment_dir}/source_trained.pth")
             if source_iter % source_evaluate_every == 1:
                 PSNR_target, _ = infer_and_evaluate(M)
