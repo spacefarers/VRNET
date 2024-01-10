@@ -13,10 +13,10 @@ from pathlib import Path
 
 label_weight = 1
 
-def DomainAdaptation(run_id=300, source_iters=100, target_iters=100, tag="DA", load_model=True, stage="source"):
+def DomainAdaptation(run_id=300, source_iters=100, target_iters=100, tag="DA", load_model=True, stage="source", use_restorer=True):
     print(f"Running {tag} {run_id}...")
     config.domain_backprop = False
-    config.enable_restorer = True
+    config.enable_restorer = use_restorer
     M = model.prep_model(model.Net())
     optimizer_G = torch.optim.Adam(M.parameters(), lr=1e-4, betas=(0.9, 0.999))
     config.tags.append(tag)
@@ -35,7 +35,7 @@ def DomainAdaptation(run_id=300, source_iters=100, target_iters=100, tag="DA", l
     domain_criterion = nn.L1Loss()
 
     # check if source is already trained
-    if stage == "source":
+    if stage == "source" or stage == "all":
         if os.path.exists(f"{experiment_dir}/source_trained.pth") and load_model:
             x = torch.load(f"{experiment_dir}/source_trained.pth")
             M = model.load_model(M, x)
@@ -57,16 +57,15 @@ def DomainAdaptation(run_id=300, source_iters=100, target_iters=100, tag="DA", l
                 high_res_source = high_res_source.to(config.device)
                 target_low = next(target_data)[0].to(config.device)
 
-                pred_source, _, _ = M(low_res_source[:, 0:1], low_res_source[:, -1:])
-                _, _, target_restore = M(target_low[:, 0:1], target_low[:, -1:])
                 optimizer_G.zero_grad()
-
-                vol_loss = criterion(pred_source, high_res_source)
-                target_restore_loss = criterion(target_restore, target_low)
-                target_restore_total_loss += target_restore_loss.mean().item()
-                vol_loss_total += vol_loss.mean().item()
-
-                loss = vol_loss + target_restore_loss
+                pred_source, _, _ = M(low_res_source[:, 0:1], low_res_source[:, -1:])
+                loss = criterion(pred_source, high_res_source)
+                vol_loss_total += loss.mean().item()
+                if use_restorer:
+                    _, _, target_restore = M(target_low[:, 0:1], target_low[:, -1:])
+                    target_restore_loss = criterion(target_restore, target_low)
+                    target_restore_total_loss += target_restore_loss.mean().item()
+                    loss += target_restore_loss
                 loss.backward()
                 optimizer_G.step()
             config.log({"Source Vol Loss": vol_loss_total/len(source_data), "Source Target Restore Loss": target_restore_total_loss/len(source_data)})
@@ -74,14 +73,15 @@ def DomainAdaptation(run_id=300, source_iters=100, target_iters=100, tag="DA", l
             if source_iter % source_evaluate_every == 1:
                 PSNR_target, _ = infer_and_evaluate(M)
                 PSNR_source, _ = infer_and_evaluate(M, data=source_ds)
-                config.log({"Source PSNR": PSNR_source, "Target PSNR": PSNR_target})
-    else:
+                config.log({"S1 Source PSNR": PSNR_source, "S1 Target PSNR": PSNR_target})
+    if stage == "target" or stage == "all":
         # Evaluate source training efficiency
         # PSNR, PSNR_list = infer_and_evaluate(M, write_to_file=False, data=source_ds)
         # save_plot(PSNR, PSNR_list, config.experiments_dir + f"/{config.run_id:03d}", run_cycle=0)
         # Phase 2: Train on target
         config.set_status("Target Training")
-        M = model.load_model(M, torch.load(f"{experiment_dir}/{'target_trained' if load_model and os.path.exists(f'{experiment_dir}/target_trained.pth') else 'source_trained'}.pth"))
+        if stage == "target":
+            M = model.load_model(M, torch.load(f"{experiment_dir}/{'target_trained' if load_model and os.path.exists(f'{experiment_dir}/target_trained.pth') else 'source_trained'}.pth"))
         # lock feature extractors
         # for mod in next(iter(M.children())).children():
         #     if isinstance(mod, model.FeatureExtractor):
@@ -108,8 +108,10 @@ def DomainAdaptation(run_id=300, source_iters=100, target_iters=100, tag="DA", l
             config.log({"Target Vol Loss": vol_loss_total})
             torch.save(M.state_dict(), f"{experiment_dir}/target_trained.pth")
             if target_iter % target_evaluate_every == 1:
-                PSNR, PSNR_list = infer_and_evaluate(M, write_to_file=True, inference_dir=inference_dir, experiments_dir=experiment_dir)
-                save_plot(PSNR, PSNR_list, experiment_dir, run_cycle=1)
+                # PSNR, PSNR_list = infer_and_evaluate(M, write_to_file=True, inference_dir=inference_dir, experiments_dir=experiment_dir)
+                PSNR_target, _ = infer_and_evaluate(M)
+                PSNR_source, _ = infer_and_evaluate(M, data=source_ds)
+                config.log({"S2 Source PSNR": PSNR_source, "S2 Target PSNR": PSNR_target})
 
     config.set_status("Succeeded")
 

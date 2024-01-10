@@ -72,7 +72,7 @@ pretrain_epochs = 0
 finetune1_epochs = 10
 finetune2_epochs = 10
 
-train_data_split = 18  # number of datapoints used for training
+train_data_split = 4  # number of datapoints used for training
 
 run_cycle = None
 ensemble_iter = None
