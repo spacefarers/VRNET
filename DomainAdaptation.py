@@ -26,7 +26,7 @@ def DomainAdaptation(run_id=300, source_iters=100, target_iters=100, tag="DA", l
     Path(experiment_dir).mkdir(parents=True, exist_ok=True)
     source_ds = Dataset(config.source_dataset, config.source_var, "all")
     target_ds = Dataset(config.target_dataset, config.target_var, "train")
-    source_evaluate_every = 5
+    source_evaluate_every = 20
     target_evaluate_every = 20
 
 
