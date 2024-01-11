@@ -25,6 +25,7 @@ def DomainAdaptation(run_id=300, source_iters=100, target_iters=100, tag="DA", l
     inference_dir = experiment_dir + "/inference/"
     Path(experiment_dir).mkdir(parents=True, exist_ok=True)
     source_ds = Dataset(config.source_dataset, config.source_var, "20")
+    eval_source_ds = Dataset(config.source_dataset, config.source_var, "all")
     target_ds = Dataset(config.target_dataset, config.target_var, "train")
     source_evaluate_every = 20
     target_evaluate_every = 20
@@ -72,7 +73,7 @@ def DomainAdaptation(run_id=300, source_iters=100, target_iters=100, tag="DA", l
             torch.save(M.state_dict(), f"{experiment_dir}/source_trained.pth")
             if source_iter % source_evaluate_every == source_evaluate_every-1:
                 PSNR_target, _ = infer_and_evaluate(M)
-                PSNR_source, _ = infer_and_evaluate(M, data=source_ds)
+                PSNR_source, _ = infer_and_evaluate(M, data=eval_source_ds)
                 config.log({"S1 Source PSNR": PSNR_source, "S1 Target PSNR": PSNR_target})
     if stage == "target" or stage == "all":
         config.enable_restorer = False
@@ -111,7 +112,7 @@ def DomainAdaptation(run_id=300, source_iters=100, target_iters=100, tag="DA", l
             if target_iter % target_evaluate_every == target_evaluate_every-1:
                 # PSNR, PSNR_list = infer_and_evaluate(M, write_to_file=True, inference_dir=inference_dir, experiments_dir=experiment_dir)
                 PSNR_target, _ = infer_and_evaluate(M)
-                PSNR_source, _ = infer_and_evaluate(M, data=source_ds)
+                PSNR_source, _ = infer_and_evaluate(M, data=eval_source_ds)
                 config.log({"S2 Source PSNR": PSNR_source, "S2 Target PSNR": PSNR_target})
 
     config.set_status("Succeeded")
