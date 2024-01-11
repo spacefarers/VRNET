@@ -16,7 +16,6 @@ label_weight = 1
 def DomainAdaptation(run_id=300, source_iters=100, target_iters=100, tag="DA", load_model=True, stage="source", use_restorer=True):
     print(f"Running {tag} {run_id}...")
     config.domain_backprop = False
-    config.enable_restorer = use_restorer
     M = model.prep_model(model.Net())
     optimizer_G = torch.optim.Adam(M.parameters(), lr=1e-4, betas=(0.9, 0.999))
     config.tags.append(tag)
@@ -36,6 +35,7 @@ def DomainAdaptation(run_id=300, source_iters=100, target_iters=100, tag="DA", l
 
     # check if source is already trained
     if stage == "source" or stage == "all":
+        config.enable_restorer = use_restorer
         if os.path.exists(f"{experiment_dir}/source_trained.pth") and load_model:
             x = torch.load(f"{experiment_dir}/source_trained.pth")
             M = model.load_model(M, x)
@@ -75,6 +75,7 @@ def DomainAdaptation(run_id=300, source_iters=100, target_iters=100, tag="DA", l
                 PSNR_source, _ = infer_and_evaluate(M, data=source_ds)
                 config.log({"S1 Source PSNR": PSNR_source, "S1 Target PSNR": PSNR_target})
     if stage == "target" or stage == "all":
+        config.enable_restorer = False
         # Evaluate source training efficiency
         # PSNR, PSNR_list = infer_and_evaluate(M, write_to_file=False, data=source_ds)
         # save_plot(PSNR, PSNR_list, config.experiments_dir + f"/{config.run_id:03d}", run_cycle=0)
@@ -99,7 +100,7 @@ def DomainAdaptation(run_id=300, source_iters=100, target_iters=100, tag="DA", l
                 optimizer_G.zero_grad()
                 low_res_source = low_res_source.to(config.device)
                 high_res_source = high_res_source.to(config.device)
-                pred_source, _ = M(low_res_source[:, 0:1], low_res_source[:, -1:])
+                pred_source, _, _ = M(low_res_source[:, 0:1], low_res_source[:, -1:])
                 vol_loss = criterion(pred_source, high_res_source)
                 vol_loss_total += vol_loss.mean().item()
                 loss = vol_loss
