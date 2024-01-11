@@ -13,7 +13,7 @@ from pathlib import Path
 
 label_weight = 1
 
-def DomainAdaptation(run_id=300, source_iters=100, target_iters=100, tag="DA", load_model=True, stage="source", use_restorer=True):
+def DomainAdaptation(run_id=300, source_iters=100, target_iters=100, tag="DA", load_model=False, stage="source", use_restorer=True):
     print(f"Running {tag} {run_id}...")
     config.domain_backprop = False
     M = model.prep_model(model.Net())
@@ -41,8 +41,8 @@ def DomainAdaptation(run_id=300, source_iters=100, target_iters=100, tag="DA", l
             M = model.load_model(M, x)
             print("Model loaded")
         # Phase 1: Train on source
-        config.set_status("Source Training")
         for source_iter in tqdm(range(source_iters),leave=False,desc="Source Training", position=0):
+            config.set_status("Source Training")
             tqdm.write("-" * 20)
             source_data = source_ds.get_augmented_data()
             bp_crop_times = config.crop_times
@@ -68,9 +68,9 @@ def DomainAdaptation(run_id=300, source_iters=100, target_iters=100, tag="DA", l
                     loss += target_restore_loss
                 loss.backward()
                 optimizer_G.step()
-            config.log({"Source Vol Loss": vol_loss_total/len(source_data), "Source Target Restore Loss": target_restore_total_loss/len(source_data)})
+            config.log({"S1 Vol Loss": vol_loss_total/len(source_data), "S1 Restore Loss": target_restore_total_loss/len(source_data)})
             torch.save(M.state_dict(), f"{experiment_dir}/source_trained.pth")
-            if source_iter % source_evaluate_every == 1:
+            if source_iter % source_evaluate_every == source_evaluate_every-1:
                 PSNR_target, _ = infer_and_evaluate(M)
                 PSNR_source, _ = infer_and_evaluate(M, data=source_ds)
                 config.log({"S1 Source PSNR": PSNR_source, "S1 Target PSNR": PSNR_target})
@@ -80,7 +80,6 @@ def DomainAdaptation(run_id=300, source_iters=100, target_iters=100, tag="DA", l
         # PSNR, PSNR_list = infer_and_evaluate(M, write_to_file=False, data=source_ds)
         # save_plot(PSNR, PSNR_list, config.experiments_dir + f"/{config.run_id:03d}", run_cycle=0)
         # Phase 2: Train on target
-        config.set_status("Target Training")
         if stage == "target":
             M = model.load_model(M, torch.load(f"{experiment_dir}/{'target_trained' if load_model and os.path.exists(f'{experiment_dir}/target_trained.pth') else 'source_trained'}.pth"))
         # lock feature extractors
@@ -92,6 +91,7 @@ def DomainAdaptation(run_id=300, source_iters=100, target_iters=100, tag="DA", l
 
 
         for target_iter in tqdm(range(target_iters), leave=False, desc="Target Training"):
+            config.set_status("Target Training")
             tqdm.write("-" * 20)
             target_data = target_ds.get_augmented_data()
             vol_loss_total = 0
@@ -106,9 +106,9 @@ def DomainAdaptation(run_id=300, source_iters=100, target_iters=100, tag="DA", l
                 loss = vol_loss
                 loss.backward()
                 optimizer_G.step()
-            config.log({"Target Vol Loss": vol_loss_total})
+            config.log({"S2 Vol Loss": vol_loss_total})
             torch.save(M.state_dict(), f"{experiment_dir}/target_trained.pth")
-            if target_iter % target_evaluate_every == 1:
+            if target_iter % target_evaluate_every == target_evaluate_every-1:
                 # PSNR, PSNR_list = infer_and_evaluate(M, write_to_file=True, inference_dir=inference_dir, experiments_dir=experiment_dir)
                 PSNR_target, _ = infer_and_evaluate(M)
                 PSNR_source, _ = infer_and_evaluate(M, data=source_ds)
