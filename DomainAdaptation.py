@@ -16,8 +16,12 @@ label_weight = 1
 def DomainAdaptation(run_id=300, source_iters=100, target_iters=100, tag="DA", load_model=False, stage="source", use_restorer=True):
     print(f"Running {tag} {run_id}...")
     config.domain_backprop = False
-    M = model.prep_model(model.Net())
-    optimizer_G = torch.optim.Adam(M.parameters(), lr=1e-4, betas=(0.9, 0.999))
+    feature_extractor = model.FeatureExtractors()
+    upscaler = model.Upscaler()
+    optimizer_FE = torch.optim.Adam(feature_extractor.parameters(), lr=1e-4, betas=(0.9, 0.999))
+    optimizer_UP = torch.optim.Adam(upscaler.parameters(), lr=4e-4, betas=(0.9, 0.999))
+    domain_classifier = model.AdvancedDomainClassifier()
+    restorer = model.Restorer()
     config.tags.append(tag)
     config.run_id = run_id
     run_id = f"{config.run_id:03d}"

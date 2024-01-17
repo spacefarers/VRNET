@@ -353,80 +353,21 @@ class DomainClassifier(nn.Module):
 class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
-        self.interval = config.interval
-        self.scale = config.scale
-        self.s = FeatureExtractor(1)
+        self.encoder = FeatureExtractors()
+        self.upscale = Upscaler()
+        self.restoration = Restorer()
+        self.domain_classifier = AdvancedDomainClassifier()
 
-        self.t = nn.Sequential()
-        for k in range(0, self.interval):
-            self.t.add_module('temporal' + str(k + 1), FeatureExtractor(2))
-
-        if self.scale == 4:
-            self.upscaler = nn.Sequential(*[Upscale(64, 64),
-                                            nn.ReLU(True),
-                                            Upscale(64, 32),
-                                            nn.ReLU(True),
-                                            nn.Conv3d(32, 1, 3, 1, 1)
-                                            ])
-        elif self.scale == 8:
-            self.upscaler = nn.Sequential(*[Upscale(64 // 2, 64 // 2),
-                                            nn.ReLU(True),
-                                            Upscale(64 // 2, 32 // 2),
-                                            nn.ReLU(True),
-                                            Upscale(32 // 2, 16 // 2),
-                                            nn.ReLU(True),
-                                            nn.Conv3d(16 // 2, 1, 3, 1, 1)
-                                            ])
-
-        self.domain_classifier = DomainClassifier()
-        self.temporal_modifier = RDB((config.interval+2)*64, (config.interval+2)*64)
-
-        self.restorer = nn.Sequential(*[
-            # nn.ConvTranspose3d(in_channels=64, out_channels=32, kernel_size=3, stride=2, padding=1, output_padding=1, dilation=1),
-            # nn.ReLU(),
-            # nn.Conv3d(in_channels=32, out_channels=32, kernel_size=3, padding=1, bias=True),
-            # nn.ReLU(),
-            # nn.Conv3d(in_channels=32, out_channels=32, kernel_size=3, padding=1, bias=True),
-            # nn.ReLU(),
-            # nn.ConvTranspose3d(in_channels=32, out_channels=16, kernel_size=3, stride=2, padding=1, output_padding=1, dilation=1),
-            # nn.ReLU(),
-            # nn.Conv3d(in_channels=16, out_channels=16, kernel_size=3, padding=1, bias=True),
-            # nn.ReLU(),
-            # nn.Conv3d(in_channels=16, out_channels=16, kernel_size=3, padding=1, bias=True),
-            # nn.ReLU(),
-            # nn.Conv3d(in_channels=16, out_channels=1, kernel_size=1, bias=True),
-            # nn.ReLU(),
-            # RDB(64,64),
-            # RDB(64,32),
-            # RDB(32, 16),
-            # RDB(16, 1),
-            nn.Conv3d(64, 32, kernel_size=3, stride=1, padding=1),
-            nn.Conv3d(32, 1, kernel_size=3, stride=1, padding=1),
-        ])
-
-    def forward(self, s, e, alpha_forward=1, alpha_reverse=1):
-        self.s = ApplyAlpha.apply(self.s, alpha_forward)
-        features = [self.s(s)]
-        for k in range(0, self.interval):
-            self.t._modules['temporal' + str(k + 1)] = ApplyAlpha.apply(self.t._modules['temporal' + str(k + 1)], alpha_forward)
-            features.append(self.t._modules['temporal' + str(k + 1)](torch.cat((s, e), dim=1)))
-        features.append(self.s(e))
-        # features = torch.cat(features, dim=1)
-        # features = self.temporal_modifier(features)
-        # features = torch.split(features, 64, dim=1)
-        domain_output = None
-        if self.training and config.domain_backprop:
-            domain_input = []
-            for i in features:
-                reverse_features = ReverseLayerF.apply(i, alpha_reverse)
-                domain_input.append(reverse_features)
-            domain_input = torch.stack(domain_input, dim=1)
-            domain_output = self.domain_classifier(domain_input)
-        restorer_output = None
+    def forward(self, LR, alpha):
+        features = self.encoder(LR)
+        restoration = domain_label = None
         if self.training and config.enable_restorer:
-            restorer_output = torch.cat([self.restorer(i) for i in features], dim=1)
-        output = torch.cat([self.upscaler(i) for i in features], dim=1)
-        return output, domain_output, restorer_output
+            restoration = self.restorer(features)
+        HR = self.upscale(features)
+        if self.training and config.domain_backprop:
+            reversed_features = ReverseLayerF.apply(features, alpha)
+            domain_label = self.domain_classifier(reversed_features)
+        return HR, restoration, domain_label
 
 def weight_reset(m):
     for layer in m.children():
@@ -440,6 +381,63 @@ def prep_model(model):
     model = nn.DataParallel(model)
     model.apply(weights_init_kaiming)
     return model
+
+class Restorer(nn.Module):
+    def __init__(self):
+        super(Restorer, self).__init__()
+        self.restorer = nn.Sequential(*[
+            nn.Conv3d(64, 32, kernel_size=3, stride=1, padding=1),
+            nn.Conv3d(32, 1, kernel_size=3, stride=1, padding=1),
+        ])
+
+    def forward(self, s):
+        return self.restorer(s)
+
+class Upscaler(nn.Module):
+    def __init__(self):
+        super(Upscaler, self).__init__()
+        self.t = nn.Sequential()
+
+        assert config.scale == 4 or config.scale==8, "Only scale 4 is supported for now"
+
+        if config.scale == 4:
+            self.upscaler = nn.Sequential(*[Upscale(64, 64),
+                                            nn.ReLU(True),
+                                            Upscale(64, 32),
+                                            nn.ReLU(True),
+                                            nn.Conv3d(32, 1, 3, 1, 1)
+                                            ])
+        elif config.scale == 8:
+            self.upscaler = nn.Sequential(*[Upscale(64 // 2, 64 // 2),
+                                            nn.ReLU(True),
+                                            Upscale(64 // 2, 32 // 2),
+                                            nn.ReLU(True),
+                                            Upscale(32 // 2, 16 // 2),
+                                            nn.ReLU(True),
+                                            nn.Conv3d(16 // 2, 1, 3, 1, 1)
+                                            ])
+    def forward(self, features):
+        output = []
+        for i in range(config.interval+2):
+            output.append(self.upscaler(features[:,i]))
+        return torch.cat(output, dim=1)
+
+class FeatureExtractors(nn.Module):
+    def __init__(self):
+        super(FeatureExtractors, self).__init__()
+        self.s = FeatureExtractor(1)
+
+        self.t = nn.Sequential()
+        for k in range(0, self.interval):
+            self.t.add_module('temporal' + str(k + 1), FeatureExtractor(2))
+
+    def forward(self, s, e):
+        features = [self.s(s)]
+        for k in range(0, self.interval):
+            features.append(self.t._modules['temporal' + str(k + 1)](torch.cat((s, e), dim=1)))
+        features.append(self.s(e))
+        output = torch.cat([self.upscaler(i) for i in features], dim=1)
+        return output
 
 
 class MetaClassifier(nn.Module):
