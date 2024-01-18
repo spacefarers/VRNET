@@ -11,9 +11,9 @@ machine = platform.node()
 # target_var = "640"
 
 source_dataset = 'half-cylinder'
-source_var = "160"
-target_dataset = "half-cylinder"
-target_var = "6400"
+source_var = "640"
+target_dataset = "vorts"
+target_var = "default"
 
 # source_dataset = ["160", "320", "6400"]
 # pretrain_vars = ["RAIN", "WSMAG"]
