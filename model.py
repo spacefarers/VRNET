@@ -390,8 +390,8 @@ class Net(nn.Module):
         self.feature_domain_classifier = AdvancedFeaturesDomainClassifier()
         self.LR_domain_classifier = AdvancedLRDomainClassifier()
 
-    def forward(self, LR, alpha):
-        features = self.encoder(LR)
+    def forward(self, LR_s, LR_e, alpha):
+        features = self.encoder(LR_s, LR_e)
         restoration = domain_label = None
         # if self.training and config.enable_restorer:
         #     restoration = self.restorer(features)
