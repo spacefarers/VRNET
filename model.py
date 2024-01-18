@@ -285,6 +285,7 @@ class ReverseLayerF(Function):
         output = grad_output.neg() * ctx.alpha
         return output, None
 
+
 class ApplyAlpha(Function):
     @staticmethod
     def forward(ctx, x, alpha):
@@ -297,9 +298,38 @@ class ApplyAlpha(Function):
         return output, None
 
 
-class AdvancedDomainClassifier(nn.Module):
+class AdvancedFeaturesDomainClassifier(nn.Module):
     def __init__(self):
-        super(AdvancedDomainClassifier, self).__init__()
+        super(AdvancedFeaturesDomainClassifier, self).__init__()
+        self.conv1 = nn.Conv3d(64, 128, 4, 2, 1)
+        self.bn1 = nn.BatchNorm3d(128)
+        self.conv2 = nn.Conv3d(128, 256, 4, 2, 1)
+        self.bn2 = nn.BatchNorm3d(256)
+        self.conv3 = nn.Conv3d(256, 512, 4, 2, 1)
+        self.bn3 = nn.BatchNorm3d(512)
+        self.lstm = LSTMCell(512, 512, 3)
+        self.fc1 = nn.Linear(int(np.prod(config.crop_size)), 1024)
+        self.fc2 = nn.Linear(1024, 1)
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, x):  # x.shape: [batch_size, frames: 4, 64, crop_size[0], crop_size[1], crop_size[2]]
+        h = None
+        c = None
+        for t in range(x.shape[1]):
+            f = F.relu(self.bn1(self.conv1(x[:, t, :, :, :, :])))
+            f = F.relu(self.bn2(self.conv2(f)))
+            f = F.relu(self.bn3(self.conv3(f)))
+            h, c = self.lstm(f, h, c)
+        x = h.view(h.size(0), -1)  # Flatten the tensor
+        x = F.relu(self.fc1(x))
+        x = self.fc2(x)
+        x = self.sigmoid(x).squeeze(1)
+        return x
+
+
+class AdvancedLRDomainClassifier(nn.Module):
+    def __init__(self):
+        super(AdvancedLRDomainClassifier, self).__init__()
         self.conv1 = nn.Conv3d(64, 128, 4, 2, 1)
         self.bn1 = nn.BatchNorm3d(128)
         self.conv2 = nn.Conv3d(128, 256, 4, 2, 1)
@@ -333,7 +363,7 @@ class DomainClassifier(nn.Module):
         self.conv2 = nn.Conv3d(128, 256, 4, 2, 1)
         self.conv3 = nn.Conv3d(256, 512, 4, 2, 1)
         self.fc1 = nn.Linear(int(np.prod(config.crop_size)), 10)
-        self.fc2=nn.Linear(10,1)
+        self.fc2 = nn.Linear(10, 1)
         self.sigmoid = nn.Sigmoid()
 
     def forward(self, x):  # x.shape: [batch_size, frames: 4, 64, crop_size[0], crop_size[1], crop_size[2]]
@@ -354,20 +384,22 @@ class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
         self.encoder = FeatureExtractors()
-        self.upscale = Upscaler()
-        self.restoration = Restorer()
-        self.domain_classifier = AdvancedDomainClassifier()
+        self.upscaler = Upscaler()
+        self.restorer = Restorer()
+        self.feature_domain_classifier = AdvancedFeaturesDomainClassifier()
+        self.LR_domain_classifier = AdvancedLRDomainClassifier()
 
     def forward(self, LR, alpha):
         features = self.encoder(LR)
         restoration = domain_label = None
-        if self.training and config.enable_restorer:
-            restoration = self.restorer(features)
-        HR = self.upscale(features)
-        if self.training and config.domain_backprop:
-            reversed_features = ReverseLayerF.apply(features, alpha)
-            domain_label = self.domain_classifier(reversed_features)
+        # if self.training and config.enable_restorer:
+        #     restoration = self.restorer(features)
+        HR = self.upscaler(features)
+        # if self.training and config.domain_backprop:
+        #     reversed_features = ReverseLayerF.apply(features, alpha)
+        #     domain_label = self.domain_classifier(reversed_features)
         return HR, restoration, domain_label
+
 
 def weight_reset(m):
     for layer in m.children():
@@ -376,11 +408,13 @@ def weight_reset(m):
         else:
             weight_reset(layer)
 
+
 def prep_model(model):
     model = model.to(config.device)
-    model = nn.DataParallel(model)
+    # model = nn.parallel.DistributedDataParallel(model)
     model.apply(weights_init_kaiming)
     return model
+
 
 class Restorer(nn.Module):
     def __init__(self):
@@ -390,15 +424,19 @@ class Restorer(nn.Module):
             nn.Conv3d(32, 1, kernel_size=3, stride=1, padding=1),
         ])
 
-    def forward(self, s):
-        return self.restorer(s)
+    def forward(self, features):
+        output = []
+        for i in range(config.interval + 2):
+            output.append(self.restorer(features[:, i]))
+        return torch.cat(output, dim=1)
+
 
 class Upscaler(nn.Module):
     def __init__(self):
         super(Upscaler, self).__init__()
         self.t = nn.Sequential()
 
-        assert config.scale == 4 or config.scale==8, "Only scale 4 is supported for now"
+        assert config.scale == 4 or config.scale == 8, "Only scale 4 is supported for now"
 
         if config.scale == 4:
             self.upscaler = nn.Sequential(*[Upscale(64, 64),
@@ -416,11 +454,13 @@ class Upscaler(nn.Module):
                                             nn.ReLU(True),
                                             nn.Conv3d(16 // 2, 1, 3, 1, 1)
                                             ])
+
     def forward(self, features):
         output = []
-        for i in range(config.interval+2):
-            output.append(self.upscaler(features[:,i]))
+        for i in range(config.interval + 2):
+            output.append(self.upscaler(features[:, i]))
         return torch.cat(output, dim=1)
+
 
 class FeatureExtractors(nn.Module):
     def __init__(self):
@@ -428,16 +468,16 @@ class FeatureExtractors(nn.Module):
         self.s = FeatureExtractor(1)
 
         self.t = nn.Sequential()
-        for k in range(0, self.interval):
+        for k in range(0, config.interval):
             self.t.add_module('temporal' + str(k + 1), FeatureExtractor(2))
 
     def forward(self, s, e):
         features = [self.s(s)]
-        for k in range(0, self.interval):
+        for k in range(0, config.interval):
             features.append(self.t._modules['temporal' + str(k + 1)](torch.cat((s, e), dim=1)))
         features.append(self.s(e))
-        output = torch.cat([self.upscaler(i) for i in features], dim=1)
-        return output
+        features = torch.stack(features, dim=1)
+        return features
 
 
 class MetaClassifier(nn.Module):

@@ -13,15 +13,11 @@ from pathlib import Path
 
 label_weight = 1
 
-def DomainAdaptation(run_id=300, source_iters=100, target_iters=100, tag="DA", load_model=False, stage="source", use_restorer=True):
+def DomainAdaptation(run_id=400, source_iters=100, target_iters=100, tag="DA", load_model=False, stage="source", use_restorer=True):
     print(f"Running {tag} {run_id}...")
     config.domain_backprop = False
-    feature_extractor = model.FeatureExtractors()
-    upscaler = model.Upscaler()
-    optimizer_FE = torch.optim.Adam(feature_extractor.parameters(), lr=1e-4, betas=(0.9, 0.999))
-    optimizer_UP = torch.optim.Adam(upscaler.parameters(), lr=4e-4, betas=(0.9, 0.999))
-    domain_classifier = model.AdvancedDomainClassifier()
-    restorer = model.Restorer()
+    M = model.prep_model(model.Net())
+    optimizer = torch.optim.Adam(M.parameters(), lr=1e-4, betas=(0.9, 0.999))
     config.tags.append(tag)
     config.run_id = run_id
     run_id = f"{config.run_id:03d}"
@@ -54,26 +50,62 @@ def DomainAdaptation(run_id=300, source_iters=100, target_iters=100, tag="DA", l
             config.crop_times *= math.ceil(len(source_ds) / len(target_ds))
             target_data = iter(target_ds.get_augmented_data())
             config.crop_times = bp_crop_times
-            vol_loss_total = target_restore_total_loss = 0
+            discriminator_loss_total = generator_loss_total = 0
             M.train()
             for batch_idx, (low_res_source, high_res_source) in enumerate(tqdm(source_data, leave=False, desc="Source Iters", position=1)):
-                optimizer_G.zero_grad()
                 low_res_source = low_res_source.to(config.device)
                 high_res_source = high_res_source.to(config.device)
                 target_low = next(target_data)[0].to(config.device)
 
-                optimizer_G.zero_grad()
-                pred_source, _, _ = M(low_res_source[:, 0:1], low_res_source[:, -1:])
-                loss = criterion(pred_source, high_res_source)
-                vol_loss_total += loss.mean().item()
-                if use_restorer:
-                    _, _, target_restore = M(target_low[:, 0:1], target_low[:, -1:])
-                    target_restore_loss = criterion(target_restore, target_low)
-                    target_restore_total_loss += target_restore_loss.mean().item()
-                    loss += target_restore_loss
+                # Train Discriminators
+                M.encoder.requires_grad_(False)
+                M.restorer.requires_grad_(False)
+                M.LR_domain_classifier.requires_grad_(True)
+                M.feature_domain_classifier.requires_grad_(True)
+                optimizer.zero_grad()
+                features_S = M.encoder(low_res_source[:, 0:1], low_res_source[:, -1:])
+                features_T = M.encoder(target_low[:, 0:1], target_low[:, -1:])
+                feature_source_label = M.feature_domain_classifier(features_S)
+                feature_target_label = M.feature_domain_classifier(features_T)
+                features_label_loss = domain_criterion(feature_source_label, torch.ones_like(feature_source_label)) + domain_criterion(feature_target_label, torch.zeros_like(feature_target_label))
+                source_restore = M.restorer(features_S)
+                # target_restore = M.restorer(features_T)
+                LR_target_label = M.LR_domain_classifier(target_low)
+                LR_source_label = M.LR_domain_classifier(source_restore)
+                LR_label_loss = domain_criterion(LR_target_label, torch.ones_like(LR_target_label)) + domain_criterion(LR_source_label, torch.zeros_like(LR_source_label))
+                loss = LR_label_loss + features_label_loss
+                discriminator_loss_total += loss.mean().item()
                 loss.backward()
-                optimizer_G.step()
-            config.log({"S1 Vol Loss": vol_loss_total/len(source_data), "S1 Restore Loss": target_restore_total_loss/len(source_data)})
+                optimizer.step()
+
+                # Train Generators
+                M.encoder.requires_grad_(True)
+                M.restorer.requires_grad_(True)
+                M.LR_domain_classifier.requires_grad_(False)
+                M.feature_domain_classifier.requires_grad_(False)
+                optimizer.zero_grad()
+                features_S = M.encoder(low_res_source[:, 0:1], low_res_source[:, -1:])
+                features_T = M.encoder(target_low[:, 0:1], target_low[:, -1:])
+                feature_source_label = M.feature_domain_classifier(features_S)
+                feature_target_label = M.feature_domain_classifier(features_T)
+                features_label_loss = domain_criterion(feature_source_label, torch.full_like(feature_source_label, 0.5)) + domain_criterion(feature_target_label, torch.full_like(feature_target_label, 0.5))
+                source_restore = M.restorer(features_S)
+                target_restore = M.restorer(features_T)
+                LR_target_label = M.LR_domain_classifier(target_low)
+                LR_source_label = M.LR_domain_classifier(source_restore)
+                LR_label_loss = domain_criterion(LR_target_label, torch.full_like(LR_target_label, 0.5)) + domain_criterion(LR_source_label, torch.full_like(LR_source_label, 0.5))
+                restore_loss = criterion(target_low, target_restore)
+                cycle_source_feature = M.encoder(source_restore[:, 0:1], source_restore[:, -1:])
+                cycle_source_hi = M.upscaler(cycle_source_feature)
+                source_hi = M.upscaler(features_S)
+                cycle_vol_loss = criterion(cycle_source_hi, high_res_source)
+                vol_loss = criterion(source_hi, high_res_source)
+                source_identity_loss = criterion(cycle_source_feature, features_S)
+                loss = 0.01*LR_label_loss + 0.01*features_label_loss + 0.01*source_identity_loss + vol_loss + cycle_vol_loss + restore_loss
+                generator_loss_total += loss.mean().item()
+                loss.backward()
+                optimizer.step()
+            config.log({"S1 Discriminator Loss": discriminator_loss_total/len(source_data), "S1 Generator Loss": generator_loss_total/len(source_data)})
             torch.save(M.state_dict(), f"{experiment_dir}/source_trained.pth")
             if source_iter % source_evaluate_every == source_evaluate_every-1:
                 PSNR_target, _ = infer_and_evaluate(M)
