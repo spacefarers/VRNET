@@ -330,20 +330,21 @@ class AdvancedFeaturesDomainClassifier(nn.Module):
 class AdvancedLRDomainClassifier(nn.Module):
     def __init__(self):
         super(AdvancedLRDomainClassifier, self).__init__()
-        self.conv1 = nn.Conv3d(64, 128, 4, 2, 1)
-        self.bn1 = nn.BatchNorm3d(128)
-        self.conv2 = nn.Conv3d(128, 256, 4, 2, 1)
-        self.bn2 = nn.BatchNorm3d(256)
-        self.conv3 = nn.Conv3d(256, 512, 4, 2, 1)
-        self.bn3 = nn.BatchNorm3d(512)
-        self.lstm = LSTMCell(512, 512, 3)
-        self.fc1 = nn.Linear(int(np.prod(config.crop_size)), 1024)
-        self.fc2 = nn.Linear(1024, 1)
+        self.conv1 = nn.Conv3d(1, 64, 4, 2, 1)
+        self.bn1 = nn.BatchNorm3d(64)
+        self.conv2 = nn.Conv3d(64, 128, 4, 2, 1)
+        self.bn2 = nn.BatchNorm3d(128)
+        self.conv3 = nn.Conv3d(128, 256, 4, 2, 1)
+        self.bn3 = nn.BatchNorm3d(256)
+        self.lstm = LSTMCell(256, 512, 3)
+        self.fc1 = nn.Linear(int(np.prod(config.crop_size)), 512)
+        self.fc2 = nn.Linear(512, 1)
         self.sigmoid = nn.Sigmoid()
 
-    def forward(self, x):  # x.shape: [batch_size, frames: 4, 64, crop_size[0], crop_size[1], crop_size[2]]
+    def forward(self, x):  # x.shape: [batch_size, frames: 4, crop_size[0], crop_size[1], crop_size[2]]
         h = None
         c = None
+        x = x.unsqueeze(2)
         for t in range(x.shape[1]):
             f = F.relu(self.bn1(self.conv1(x[:, t, :, :, :, :])))
             f = F.relu(self.bn2(self.conv2(f)))
