@@ -156,5 +156,5 @@ def view(key):
     return results
 
 def log_all():
-    for k in tracking_obj.keys():
+    for k in list(tracking_obj.keys()):
         log({k: view(k)})
