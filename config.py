@@ -139,3 +139,22 @@ def set_status(status):
     if log_obj is None:
         init_logging()
     log_obj["status"] = status
+
+tracking_obj = {}
+def track(values):
+    for key, value in values.items():
+        if type(value) is torch.Tensor:
+            value = value.mean().item()
+        if key in tracking_obj:
+            tracking_obj[key].append(value)
+        else:
+            tracking_obj[key] = [value]
+
+def view(key):
+    results = np.mean(tracking_obj[key])
+    del tracking_obj[key]
+    return results
+
+def log_all():
+    for k in tracking_obj.keys():
+        log({k: view(k)})

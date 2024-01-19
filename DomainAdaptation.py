@@ -50,7 +50,6 @@ def DomainAdaptation(run_id=400, source_iters=100, target_iters=100, tag="DA", l
             config.crop_times *= math.ceil(len(source_ds) / len(target_ds))
             target_data = iter(target_ds.get_augmented_data())
             config.crop_times = bp_crop_times
-            discriminator_loss_total = generator_loss_total = 0
             M.train()
             for batch_idx, (low_res_source, high_res_source) in enumerate(tqdm(source_data, leave=False, desc="Source Iters", position=1)):
                 low_res_source = low_res_source.to(config.device)
@@ -74,7 +73,7 @@ def DomainAdaptation(run_id=400, source_iters=100, target_iters=100, tag="DA", l
                 LR_source_label = M.LR_domain_classifier(source_restore)
                 LR_label_loss = domain_criterion(LR_target_label, torch.ones_like(LR_target_label)) + domain_criterion(LR_source_label, torch.zeros_like(LR_source_label))
                 loss = LR_label_loss + features_label_loss
-                discriminator_loss_total += loss.mean().item()
+                config.track({"S1 LRD Label Loss": LR_label_loss, "S1 FeatureD Label Loss": features_label_loss})
                 loss.backward()
                 optimizer.step()
 
@@ -102,10 +101,10 @@ def DomainAdaptation(run_id=400, source_iters=100, target_iters=100, tag="DA", l
                 vol_loss = criterion(source_hi, high_res_source)
                 source_identity_loss = criterion(cycle_source_feature, features_S)
                 loss = 0.01*LR_label_loss + 0.01*features_label_loss + 0.01*source_identity_loss + vol_loss + cycle_vol_loss + restore_loss
-                generator_loss_total += loss.mean().item()
+                config.track({"S1 LR Label Loss": LR_label_loss, "S1 Feature Label Loss": features_label_loss, "S1 Source Identity Loss": source_identity_loss, "S1 Vol Loss": vol_loss, "S1 Cycle Vol Loss": cycle_vol_loss, "S1 Restore Loss": restore_loss})
                 loss.backward()
                 optimizer.step()
-            config.log({"S1 Discriminator Loss": discriminator_loss_total/len(source_data), "S1 Generator Loss": generator_loss_total/len(source_data)})
+            config.log_all()
             torch.save(M.state_dict(), f"{experiment_dir}/source_trained.pth")
             if source_iter % source_evaluate_every == 0:
                 PSNR_target, _ = infer_and_evaluate(M)
@@ -134,7 +133,7 @@ def DomainAdaptation(run_id=400, source_iters=100, target_iters=100, tag="DA", l
             vol_loss_total = 0
             M.train()
             for batch_idx, (low_res_source, high_res_source) in enumerate(tqdm(target_data, leave=False, desc="Target Iters")):
-                optimizer_G.zero_grad()
+                optimizer.zero_grad()
                 low_res_source = low_res_source.to(config.device)
                 high_res_source = high_res_source.to(config.device)
                 pred_source, _, _ = M(low_res_source[:, 0:1], low_res_source[:, -1:])
@@ -142,7 +141,7 @@ def DomainAdaptation(run_id=400, source_iters=100, target_iters=100, tag="DA", l
                 vol_loss_total += vol_loss.mean().item()
                 loss = vol_loss
                 loss.backward()
-                optimizer_G.step()
+                optimizer.step()
             config.log({"S2 Vol Loss": vol_loss_total})
             torch.save(M.state_dict(), f"{experiment_dir}/target_trained.pth")
             if target_iter % target_evaluate_every == 0:
