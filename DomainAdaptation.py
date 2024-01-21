@@ -16,19 +16,28 @@ label_weight = 1
 def DomainAdaptation(run_id=400, source_iters=100, target_iters=100, tag="DA", load_model=False, stage="source", use_restorer=True):
     print(f"Running {tag} {run_id}...")
     config.domain_backprop = False
-    M = model.prep_model(model.Net())
-    E = model.prep_model(M.module.encoder)
-    U = model.prep_model(M.module.upscaler)
-    R = model.prep_model(M.module.restorer)
-    LRDC = model.prep_model(M.module.LR_domain_classifier)
-    FDC = model.prep_model(M.module.feature_domain_classifier)
-    optimizer = torch.optim.Adam(M.parameters(), lr=5e-5, betas=(0.9, 0.999))
     config.tags.append(tag)
     config.run_id = run_id
     run_id = f"{config.run_id:03d}"
     experiment_dir = os.path.join(config.experiments_dir, run_id)
     inference_dir = experiment_dir + "/inference/"
     Path(experiment_dir).mkdir(parents=True, exist_ok=True)
+
+    M = model.prep_model(model.Net())
+    if stage == "target" or stage == "all":
+        if os.path.exists(f"{experiment_dir}/source_trained.pth") and load_model:
+            x = torch.load(f"{experiment_dir}/source_trained.pth")
+            M = model.load_model(M, x)
+    else:
+        M = model.load_model(M, torch.load(
+            f"{experiment_dir}/{'target_trained' if load_model and os.path.exists(f'{experiment_dir}/target_trained.pth') else 'source_trained'}.pth"))
+    E = model.prep_model(M.module.encoder)
+    U = model.prep_model(M.module.upscaler)
+    R = model.prep_model(M.module.restorer)
+    LRDC = model.prep_model(M.module.LR_domain_classifier)
+    FDC = model.prep_model(M.module.feature_domain_classifier)
+    optimizer = torch.optim.Adam(M.parameters(), lr=5e-5, betas=(0.9, 0.999))
+
     source_ds = Dataset(config.source_dataset, config.source_var, "all")
     # eval_source_ds = Dataset(config.source_dataset, config.source_var, "all")
     eval_source_ds = source_ds
@@ -43,10 +52,6 @@ def DomainAdaptation(run_id=400, source_iters=100, target_iters=100, tag="DA", l
     # check if source is already trained
     if stage == "source" or stage == "all":
         config.enable_restorer = use_restorer
-        if os.path.exists(f"{experiment_dir}/source_trained.pth") and load_model:
-            x = torch.load(f"{experiment_dir}/source_trained.pth")
-            M = model.load_model(M, x)
-            print("Model loaded")
         # Phase 1: Train on source
         for source_iter in tqdm(range(source_iters),leave=False,desc="Source Training", position=0):
             config.set_status("Source Training")
@@ -130,14 +135,8 @@ def DomainAdaptation(run_id=400, source_iters=100, target_iters=100, tag="DA", l
         # PSNR, PSNR_list = infer_and_evaluate(M, write_to_file=False, data=source_ds)
         # save_plot(PSNR, PSNR_list, config.experiments_dir + f"/{config.run_id:03d}", run_cycle=0)
         # Phase 2: Train on target
-        if stage == "target":
-            M = model.load_model(M, torch.load(f"{experiment_dir}/{'target_trained' if load_model and os.path.exists(f'{experiment_dir}/target_trained.pth') else 'source_trained'}.pth"))
-        # lock feature extractors
-        # for mod in next(iter(M.children())).children():
-        #     if isinstance(mod, model.FeatureExtractor):
-        #         mod.requires_grad_(False)
-            # if isinstance(mod, nn.Sequential) and not isinstance(mod[0], model.FeatureExtractor):
-            #     model.weight_reset(mod)
+        # reset upscaler weights
+        model.weight_reset(M.module.upscaler)
 
 
         for target_iter in tqdm(range(target_iters), leave=False, desc="Target Training"):
