@@ -28,7 +28,7 @@ def DomainAdaptation(run_id=400, source_iters=100, target_iters=100, tag="DA", l
     # eval_source_ds = Dataset(config.source_dataset, config.source_var, "all")
     eval_source_ds = source_ds
     target_ds = Dataset(config.target_dataset, config.target_var, "train")
-    source_evaluate_every = 20
+    source_evaluate_every = 5
     target_evaluate_every = 20
 
 
