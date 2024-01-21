@@ -109,7 +109,7 @@ def DomainAdaptation(run_id=400, source_iters=100, target_iters=100, tag="DA", l
                 optimizer.step()
             config.log_all()
             torch.save(M.state_dict(), f"{experiment_dir}/source_trained.pth")
-            if source_iter % source_evaluate_every == 0:
+            if source_iter % source_evaluate_every == source_evaluate_every - 1:
                 PSNR_target, _ = infer_and_evaluate(M)
                 PSNR_source, _ = infer_and_evaluate(M, data=eval_source_ds)
                 config.log({"S1 Source PSNR": PSNR_source, "S1 Target PSNR": PSNR_target})
@@ -147,7 +147,7 @@ def DomainAdaptation(run_id=400, source_iters=100, target_iters=100, tag="DA", l
                 optimizer.step()
             config.log({"S2 Vol Loss": vol_loss_total})
             torch.save(M.state_dict(), f"{experiment_dir}/target_trained.pth")
-            if target_iter % target_evaluate_every == 0:
+            if target_iter % target_evaluate_every == target_evaluate_every - 1:
                 # PSNR, PSNR_list = infer_and_evaluate(M, write_to_file=True, inference_dir=inference_dir, experiments_dir=experiment_dir)
                 PSNR_target, _ = infer_and_evaluate(M)
                 PSNR_source, _ = infer_and_evaluate(M, data=eval_source_ds)
