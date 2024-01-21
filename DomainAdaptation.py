@@ -108,7 +108,7 @@ def DomainAdaptation(run_id=400, source_iters=100, target_iters=100, tag="DA", l
                 source_identity_loss = criterion(cycle_source_feature, features_S)
                 # loss = 0.01*LR_label_loss + 0.01*features_label_loss + 0.01*source_identity_loss + vol_loss + cycle_vol_loss + restore_loss
                 # loss = 0.01*source_identity_loss + vol_loss + cycle_vol_loss + restore_loss
-                loss = vol_loss + restore_loss
+                loss = vol_loss + restore_loss + 0.01*source_identity_loss
                 # config.track({"S1 LR Label Loss": LR_label_loss, "S1 Feature Label Loss": features_label_loss, "S1 Source Identity Loss": source_identity_loss, "S1 Vol Loss": vol_loss, "S1 Cycle Vol Loss": cycle_vol_loss, "S1 Restore Loss": restore_loss})
                 # config.track({"S1 Source Identity Loss": source_identity_loss, "S1 Vol Loss": vol_loss, "S1 Cycle Vol Loss": cycle_vol_loss, "S1 Restore Loss": restore_loss})
                 config.track({"S1 Source Identity Loss": source_identity_loss, "S1 Vol Loss": vol_loss, "S1 Restore Loss": restore_loss})
