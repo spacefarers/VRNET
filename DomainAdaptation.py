@@ -60,8 +60,9 @@ def DomainAdaptation(run_id=400, source_iters=100, target_iters=100, tag="DA", l
             for batch_idx, (low_res_source, high_res_source) in enumerate(tqdm(source_data, leave=False, desc="Source Iters", position=1)):
                 low_res_source = low_res_source.to(config.device)
                 high_res_source = high_res_source.to(config.device)
-                target_low = next(target_data)[0].to(config.device)
-                target_high = next(target_data)[1].to(config.device)
+                target_low, target_high = next(target_data)
+                target_low = target_low.to(config.device)
+                target_high = target_high.to(config.device)
 
                 # # Train Discriminators
                 # M.encoder.requires_grad_(False)
