@@ -412,7 +412,7 @@ def weight_reset(m):
 
 def prep_model(model):
     model = model.to(config.device)
-    # model = nn.parallel.DistributedDataParallel(model)
+    model = nn.DataParallel(model)
     model.apply(weights_init_kaiming)
     return model
 
