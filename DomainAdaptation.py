@@ -69,7 +69,7 @@ def DomainAdaptation(run_id=400, source_iters=100, target_iters=100, tag="DA", l
                 high_res_source = high_res_source.to(config.device)
                 target_low, target_high = next(target_data)
                 target_low = target_low.to(config.device)
-                target_high = target_high.to(config.device)
+                # target_high = target_high.to(config.device)
 
                 # # Train Discriminators
                 # M.encoder.requires_grad_(False)
@@ -101,28 +101,28 @@ def DomainAdaptation(run_id=400, source_iters=100, target_iters=100, tag="DA", l
                 features_S = E(low_res_source[:, 0:1], low_res_source[:, -1:])
                 features_T = E(target_low[:, 0:1], target_low[:, -1:])
                 source_hi = U(features_S)
-                target_hi = U(features_T)
+                # target_hi = U(features_T)
                 # feature_source_label = FDC(features_S)
                 # feature_target_label = FDC(features_T)
                 # features_label_loss = domain_criterion(feature_source_label, torch.full_like(feature_source_label, 0.5)) + domain_criterion(feature_target_label, torch.full_like(feature_target_label, 0.5))
                 # source_restore = R(features_S)
-                # target_restore = R(features_T)
+                target_restore = R(features_T)
                 # LR_target_label = LRDC(target_low)
                 # LR_source_label = LRDC(source_restore)
                 # LR_label_loss = domain_criterion(LR_target_label, torch.full_like(LR_target_label, 0.5)) + domain_criterion(LR_source_label, torch.full_like(LR_source_label, 0.5))
-                # restore_loss = criterion(target_low, target_restore)
+                restore_loss = criterion(target_low, target_restore)
                 # cycle_source_feature = E(source_restore[:, 0:1], source_restore[:, -1:])
                 # cycle_source_hi = U(cycle_source_feature)
                 # cycle_vol_loss = criterion(cycle_source_hi, high_res_source)
                 vol_loss = criterion(source_hi, high_res_source)
-                vol_loss_target = criterion(target_hi, target_high)
+                # vol_loss_target = criterion(target_hi, target_high)
                 # source_identity_loss = criterion(cycle_source_feature, features_S)
                 # loss = 0.01*LR_label_loss + 0.01*features_label_loss + 0.01*source_identity_loss + vol_loss + cycle_vol_loss + restore_loss
                 # loss = 0.01*source_identity_loss + vol_loss + cycle_vol_loss + restore_loss
-                loss = vol_loss + vol_loss_target
+                loss = vol_loss + restore_loss
                 # config.track({"S1 LR Label Loss": LR_label_loss, "S1 Feature Label Loss": features_label_loss, "S1 Source Identity Loss": source_identity_loss, "S1 Vol Loss": vol_loss, "S1 Cycle Vol Loss": cycle_vol_loss, "S1 Restore Loss": restore_loss})
                 # config.track({"S1 Source Identity Loss": source_identity_loss, "S1 Vol Loss": vol_loss, "S1 Cycle Vol Loss": cycle_vol_loss, "S1 Restore Loss": restore_loss})
-                config.track({"S1 Vol Loss": vol_loss, "S1 Target Vol Loss": vol_loss_target})
+                config.track({"S1 Vol Loss": vol_loss, "S1 Restore Loss": restore_loss})
                 loss.backward()
                 optimizer.step()
             config.log_all()
@@ -138,33 +138,34 @@ def DomainAdaptation(run_id=400, source_iters=100, target_iters=100, tag="DA", l
         # save_plot(PSNR, PSNR_list, config.experiments_dir + f"/{config.run_id:03d}", run_cycle=0)
         # Phase 2: Train on target
         # reset upscaler weights
-        # M.module.encoder.requires_grad_(False)
-        # model.weight_reset(M.module.upscaler)
-
-        for target_iter in tqdm(range(target_iters), leave=False, desc="Target Training"):
-            config.set_status("Target Training")
-            tqdm.write("-" * 20)
-            target_data = target_ds.get_augmented_data()
-            vol_loss_total = 0
-            M.train()
-            for batch_idx, (low_res_source, high_res_source) in enumerate(
-                    tqdm(target_data, leave=False, desc="Target Iters")):
-                optimizer.zero_grad()
-                low_res_source = low_res_source.to(config.device)
-                high_res_source = high_res_source.to(config.device)
-                pred_source, _, _ = M(low_res_source[:, 0:1], low_res_source[:, -1:])
-                vol_loss = criterion(pred_source, high_res_source)
-                vol_loss_total += vol_loss.mean().item()
-                loss = vol_loss
-                loss.backward()
-                optimizer.step()
-            config.log({"S2 Vol Loss": vol_loss_total})
-            torch.save(M.state_dict(), f"{experiment_dir}/target_trained.pth")
-            if target_iter % target_evaluate_every == target_evaluate_every - 1:
-                # PSNR, PSNR_list = infer_and_evaluate(M, write_to_file=True, inference_dir=inference_dir, experiments_dir=experiment_dir)
-                PSNR_target, _ = infer_and_evaluate(M)
-                PSNR_source, _ = infer_and_evaluate(M, data=eval_source_ds)
-                config.log({"S2 Source PSNR": PSNR_source, "S2 Target PSNR": PSNR_target})
+        M.module.encoder.requires_grad_(False)
+        model.weight_reset(M.module.upscaler)
+        for stage in range(2):
+            for target_iter in tqdm(range(int(target_iters/2)), leave=False, desc=f"Target Training stage {stage}"):
+                config.set_status("Target Training")
+                tqdm.write("-" * 20)
+                target_data = target_ds.get_augmented_data()
+                vol_loss_total = 0
+                M.train()
+                for batch_idx, (low_res_source, high_res_source) in enumerate(
+                        tqdm(target_data, leave=False, desc="Target Iters")):
+                    optimizer.zero_grad()
+                    low_res_source = low_res_source.to(config.device)
+                    high_res_source = high_res_source.to(config.device)
+                    pred_source, _, _ = M(low_res_source[:, 0:1], low_res_source[:, -1:])
+                    vol_loss = criterion(pred_source, high_res_source)
+                    vol_loss_total += vol_loss.mean().item()
+                    loss = vol_loss
+                    loss.backward()
+                    optimizer.step()
+                config.log({"S2 Vol Loss": vol_loss_total})
+                torch.save(M.state_dict(), f"{experiment_dir}/target_trained.pth")
+                if target_iter % target_evaluate_every == target_evaluate_every - 1:
+                    # PSNR, PSNR_list = infer_and_evaluate(M, write_to_file=True, inference_dir=inference_dir, experiments_dir=experiment_dir)
+                    PSNR_target, _ = infer_and_evaluate(M)
+                    PSNR_source, _ = infer_and_evaluate(M, data=eval_source_ds)
+                    config.log({"S2 Source PSNR": PSNR_source, "S2 Target PSNR": PSNR_target})
+            M.module.encoder.requires_grad_(True)
 
     config.set_status("Succeeded")
 
