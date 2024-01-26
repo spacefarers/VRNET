@@ -138,8 +138,8 @@ def DomainAdaptation(run_id=400, source_iters=100, target_iters=100, tag="DA", l
         # save_plot(PSNR, PSNR_list, config.experiments_dir + f"/{config.run_id:03d}", run_cycle=0)
         # Phase 2: Train on target
         # reset upscaler weights
-        M.module.encoder.requires_grad_(False)
-        model.weight_reset(M.module.upscaler)
+        # M.module.encoder.requires_grad_(False)
+        # model.weight_reset(M.module.upscaler)
 
         for target_iter in tqdm(range(target_iters), leave=False, desc="Target Training"):
             config.set_status("Target Training")
