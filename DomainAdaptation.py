@@ -13,7 +13,9 @@ from pathlib import Path
 
 label_weight = 1
 
-def DomainAdaptation(run_id=400, source_iters=100, target_iters=100, tag="DA", load_model=False, stage="source", use_restorer=True):
+
+def DomainAdaptation(run_id=400, source_iters=100, target_iters=100, tag="DA", load_model=False, stage="source",
+                     use_restorer=True):
     print(f"Running {tag} {run_id}...")
     config.domain_backprop = False
     config.tags.append(tag)
@@ -45,7 +47,6 @@ def DomainAdaptation(run_id=400, source_iters=100, target_iters=100, tag="DA", l
     source_evaluate_every = 5
     target_evaluate_every = 20
 
-
     criterion = nn.MSELoss()
     domain_criterion = nn.L1Loss()
 
@@ -53,7 +54,7 @@ def DomainAdaptation(run_id=400, source_iters=100, target_iters=100, tag="DA", l
     if stage == "source" or stage == "all":
         config.enable_restorer = use_restorer
         # Phase 1: Train on source
-        for source_iter in tqdm(range(source_iters),leave=False,desc="Source Training", position=0):
+        for source_iter in tqdm(range(source_iters), leave=False, desc="Source Training", position=0):
             config.set_status("Source Training")
             tqdm.write("-" * 20)
             source_data = source_ds.get_augmented_data()
@@ -62,7 +63,8 @@ def DomainAdaptation(run_id=400, source_iters=100, target_iters=100, tag="DA", l
             target_data = iter(target_ds.get_augmented_data())
             config.crop_times = bp_crop_times
             M.train()
-            for batch_idx, (low_res_source, high_res_source) in enumerate(tqdm(source_data, leave=False, desc="Source Iters", position=1)):
+            for batch_idx, (low_res_source, high_res_source) in enumerate(
+                    tqdm(source_data, leave=False, desc="Source Iters", position=1)):
                 low_res_source = low_res_source.to(config.device)
                 high_res_source = high_res_source.to(config.device)
                 target_low, target_high = next(target_data)
@@ -139,14 +141,14 @@ def DomainAdaptation(run_id=400, source_iters=100, target_iters=100, tag="DA", l
         M.module.encoder.requires_grad_(False)
         model.weight_reset(M.module.upscaler)
 
-
         for target_iter in tqdm(range(target_iters), leave=False, desc="Target Training"):
             config.set_status("Target Training")
             tqdm.write("-" * 20)
             target_data = target_ds.get_augmented_data()
             vol_loss_total = 0
             M.train()
-            for batch_idx, (low_res_source, high_res_source) in enumerate(tqdm(target_data, leave=False, desc="Target Iters")):
+            for batch_idx, (low_res_source, high_res_source) in enumerate(
+                    tqdm(target_data, leave=False, desc="Target Iters")):
                 optimizer.zero_grad()
                 low_res_source = low_res_source.to(config.device)
                 high_res_source = high_res_source.to(config.device)
