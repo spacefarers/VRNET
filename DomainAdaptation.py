@@ -36,8 +36,8 @@ def DomainAdaptation(run_id=20, source_iters=100, target_iters=100, tag="DA", lo
         else:
             model_load_path = f'{experiment_dir}/source_trained.pth'
     if model_load_path is not None:
+        print("Loading model from: ", model_load_path)
         M = model.load_model(M, torch.load(model_load_path))
-        print("Loaded model from: ", model_load_path)
     E = model.prep_model(M.module.encoder)
     U = model.prep_model(M.module.upscaler)
     R = model.prep_model(M.module.restorer)
