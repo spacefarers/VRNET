@@ -509,6 +509,7 @@ def load_model(model, new_model):
         if k not in new_model or s[k].size() != new_model[k].size():
             errors.append(k)
             new_model[k] = s[k]
-    print("Errors during load model:", errors)
+    if len(errors) > 0:
+        print("Mismatch during load model:", errors)
     model.load_state_dict(new_model)
     return model
