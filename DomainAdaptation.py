@@ -14,7 +14,7 @@ from pathlib import Path
 label_weight = 1
 
 
-def DomainAdaptation(run_id=20, source_iters=100, target_iters=200, tag="DA", load_model=False, stage="all",
+def DomainAdaptation(run_id=20, source_iters=100, target_iters=200, tag="DA", load_model=True, stage="all",
                      use_restorer=True):
     print(f"Running {tag} {run_id}...")
     config.domain_backprop = False

@@ -514,7 +514,7 @@ def load_module(model, new_model):
             errors.append(k)
             new_model.pop(k)
     for k in list(s.keys()):
-        if k not in new_model or s[k].size() != new_model[k].size():
+        if k not in new_model or (isinstance(s[k],torch.Tensor) and s[k].size() != new_model[k].size()):
             errors.append(k)
             new_model[k] = s[k]
     if len(errors) > 0:
