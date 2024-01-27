@@ -14,7 +14,7 @@ from pathlib import Path
 label_weight = 1
 
 
-def DomainAdaptation(run_id=20, source_iters=100, target_iters=100, tag="DA", load_model=False, stage="all",
+def DomainAdaptation(run_id=20, source_iters=100, target_iters=200, tag="DA", load_model=False, stage="all",
                      use_restorer=True):
     print(f"Running {tag} {run_id}...")
     config.domain_backprop = False
@@ -26,6 +26,7 @@ def DomainAdaptation(run_id=20, source_iters=100, target_iters=100, tag="DA", lo
     Path(experiment_dir).mkdir(parents=True, exist_ok=True)
 
     M = model.prep_model(model.Net())
+    optimizer = torch.optim.Adam(M.parameters(), lr=5e-5, betas=(0.9, 0.999))
     model_load_path = None
     if stage == "source" or stage == "all":
         if os.path.exists(f"{experiment_dir}/source_trained.pth") and load_model:
@@ -37,13 +38,12 @@ def DomainAdaptation(run_id=20, source_iters=100, target_iters=100, tag="DA", lo
             model_load_path = f'{experiment_dir}/source_trained.pth'
     if model_load_path is not None:
         print("Loading model from: ", model_load_path)
-        M = model.load_model(M, torch.load(model_load_path))
+        M,optimizer = model.load_model(M, torch.load(model_load_path),optimizer)
     E = model.prep_model(M.module.encoder)
     U = model.prep_model(M.module.upscaler)
     R = model.prep_model(M.module.restorer)
     LRDC = model.prep_model(M.module.LR_domain_classifier)
     FDC = model.prep_model(M.module.feature_domain_classifier)
-    optimizer = torch.optim.Adam(M.parameters(), lr=5e-5, betas=(0.9, 0.999))
 
     source_ds = Dataset(config.source_dataset, config.source_var, "all")
     # eval_source_ds = Dataset(config.source_dataset, config.source_var, "all")
@@ -131,7 +131,7 @@ def DomainAdaptation(run_id=20, source_iters=100, target_iters=100, tag="DA", lo
                 loss.backward()
                 optimizer.step()
             config.log_all()
-            torch.save(M.state_dict(), f"{experiment_dir}/source_trained.pth")
+            model.save_model(M,optimizer, f"{experiment_dir}/source_trained.pth")
             if source_iter % source_evaluate_every == source_evaluate_every - 1:
                 PSNR_target, _ = infer_and_evaluate(M)
                 PSNR_source, _ = infer_and_evaluate(M, data=eval_source_ds)
@@ -164,7 +164,7 @@ def DomainAdaptation(run_id=20, source_iters=100, target_iters=100, tag="DA", lo
                     loss.backward()
                     optimizer.step()
                 config.log({"S2 Vol Loss": vol_loss_total})
-                torch.save(M.state_dict(), f"{experiment_dir}/target_trained.pth")
+                model.save_model(M,optimizer, f"{experiment_dir}/target_trained.pth")
                 if target_iter % target_evaluate_every == target_evaluate_every - 1:
                     # PSNR, PSNR_list = infer_and_evaluate(M, write_to_file=True, inference_dir=inference_dir, experiments_dir=experiment_dir)
                     PSNR_target, _ = infer_and_evaluate(M)

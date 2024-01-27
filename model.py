@@ -498,7 +498,15 @@ class MetaClassifier(nn.Module):
         x = torch.cat(results, dim=0)
 
 
-def load_model(model, new_model):
+def load_model(model, new_model, optimizer):
+    if 'optimizer' in new_model:
+        optimizer_load = new_model['optimizer']
+        new_model = new_model['model']
+        optimizer = load_module(optimizer, optimizer_load)
+    model = load_module(model, new_model)
+    return model, optimizer
+
+def load_module(model, new_model):
     s = model.state_dict()
     errors = []
     for k in list(new_model.keys()):
@@ -513,3 +521,7 @@ def load_model(model, new_model):
         print("Mismatch during load model:", errors)
     model.load_state_dict(new_model)
     return model
+
+def save_model(model, optimizer, filename):
+    state = {"model": model.state_dict(),"optimizer": optimizer.state_dict()}
+    torch.save(state, filename)
