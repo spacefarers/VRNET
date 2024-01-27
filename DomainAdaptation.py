@@ -14,7 +14,7 @@ from pathlib import Path
 label_weight = 1
 
 
-def DomainAdaptation(run_id=11, source_iters=100, target_iters=100, tag="DA", load_model=False, stage="target",
+def DomainAdaptation(run_id=20, source_iters=100, target_iters=100, tag="DA", load_model=False, stage="all",
                      use_restorer=True):
     print(f"Running {tag} {run_id}...")
     config.domain_backprop = False
@@ -49,7 +49,7 @@ def DomainAdaptation(run_id=11, source_iters=100, target_iters=100, tag="DA", lo
     # eval_source_ds = Dataset(config.source_dataset, config.source_var, "all")
     eval_source_ds = source_ds
     target_ds = Dataset(config.target_dataset, config.target_var, "train")
-    source_evaluate_every = 5
+    source_evaluate_every = 100
     target_evaluate_every = 20
 
     criterion = nn.MSELoss()
@@ -61,7 +61,7 @@ def DomainAdaptation(run_id=11, source_iters=100, target_iters=100, tag="DA", lo
         # Phase 1: Train on source
         for source_iter in tqdm(range(source_iters), leave=False, desc="Source Training", position=0):
             config.set_status("Source Training")
-            tqdm.write("-" * 20)
+            # tqdm.write("-" * 20)
             source_data = source_ds.get_augmented_data()
             bp_crop_times = config.crop_times
             config.crop_times *= math.ceil(len(source_ds) / len(target_ds))
