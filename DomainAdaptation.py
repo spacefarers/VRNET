@@ -163,8 +163,8 @@ def DomainAdaptation(run_id=11, source_iters=100, target_iters=100, tag="DA", lo
                 if target_iter % target_evaluate_every == target_evaluate_every - 1:
                     # PSNR, PSNR_list = infer_and_evaluate(M, write_to_file=True, inference_dir=inference_dir, experiments_dir=experiment_dir)
                     PSNR_target, _ = infer_and_evaluate(M)
-                    PSNR_source, _ = infer_and_evaluate(M, data=eval_source_ds)
-                    config.log({"S2 Source PSNR": PSNR_source, "S2 Target PSNR": PSNR_target})
+                    # PSNR_source, _ = infer_and_evaluate(M, data=eval_source_ds)
+                    config.log({"S2 Target PSNR": PSNR_target})
             M.module.encoder.requires_grad_(True)
 
     config.set_status("Succeeded")
