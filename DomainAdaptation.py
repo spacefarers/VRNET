@@ -26,7 +26,7 @@ def DomainAdaptation(run_id=11, source_iters=100, target_iters=100, tag="DA", lo
     Path(experiment_dir).mkdir(parents=True, exist_ok=True)
 
     M = model.prep_model(model.Net())
-    if stage == "target" or stage == "all":
+    if stage == "source" or stage == "all":
         if os.path.exists(f"{experiment_dir}/source_trained.pth") and load_model:
             x = torch.load(f"{experiment_dir}/source_trained.pth")
             M = model.load_model(M, x)
