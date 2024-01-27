@@ -141,7 +141,7 @@ def DomainAdaptation(run_id=11, source_iters=100, target_iters=100, tag="DA", lo
         M.module.encoder.requires_grad_(False)
         model.weight_reset(M.module.upscaler)
         for stage in range(2):
-            for target_iter in tqdm(range(target_iters)), leave=False, desc=f"Target Training stage {stage}"):
+            for target_iter in tqdm(range(target_iters), leave=False, desc=f"Target Training stage {stage}"):
                 config.set_status("Target Training")
                 tqdm.write("-" * 20)
                 target_data = target_ds.get_augmented_data()
