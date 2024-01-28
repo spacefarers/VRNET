@@ -14,7 +14,7 @@ from pathlib import Path
 label_weight = 1
 
 
-def DomainAdaptation(run_id=31, source_iters=100, target_iters=200, tag="DA", load_model=False, stage="all",
+def DomainAdaptation(run_id=40, source_iters=100, target_iters=200, tag="DA", load_model=False, stage="target",
                      use_restorer=True):
     print(f"Running {tag} {run_id}...")
     config.domain_backprop = False
@@ -36,7 +36,7 @@ def DomainAdaptation(run_id=31, source_iters=100, target_iters=200, tag="DA", lo
             model_load_path = f'{experiment_dir}/target_trained.pth'
         else:
             model_load_path = f'{experiment_dir}/source_trained.pth'
-    if model_load_path is not None:
+    if model_load_path is not None and os.path.exists(model_load_path):
         print("Loading model from: ", model_load_path)
         M,optimizer = model.load_model(M, torch.load(model_load_path),optimizer)
     E = model.prep_model(M.module.encoder)
