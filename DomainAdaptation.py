@@ -145,10 +145,12 @@ def DomainAdaptation(run_id=31, source_iters=100, target_iters=200, tag="DA", lo
         # save_plot(PSNR, PSNR_list, config.experiments_dir + f"/{config.run_id:03d}", run_cycle=0)
         # Phase 2: Train on target
         # reset upscaler weights
-        M.module.encoder.requires_grad_(False)
+        encoder_disable = True
         # model.weight_reset(M.module.upscaler)
-        for stage in range(2):
+        for stage in range(6):
             for target_iter in tqdm(range(target_iters), leave=False, desc=f"Target Training stage {stage}"):
+                M.module.encoder.requires_grad_(not encoder_disable)
+                encoder_disable = not encoder_disable
                 config.set_status("Target Training")
                 # tqdm.write("-" * 20)
                 target_data = target_ds.get_augmented_data()
@@ -170,7 +172,6 @@ def DomainAdaptation(run_id=31, source_iters=100, target_iters=200, tag="DA", lo
                     # PSNR_source, _ = infer_and_evaluate(M, data=eval_source_ds)
                     config.log({"S2 Target PSNR": PSNR_target})
                     model.save_model(M,optimizer, f"{experiment_dir}/target_trained.pth")
-            M.module.encoder.requires_grad_(True)
 
     config.set_status("Succeeded")
 
