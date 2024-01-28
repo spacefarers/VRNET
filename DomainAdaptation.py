@@ -74,9 +74,9 @@ def DomainAdaptation(run_id=31, source_iters=100, target_iters=200, tag="DA", lo
                     tqdm(source_data, leave=False, desc="Source Iters", position=1)):
                 low_res_source = low_res_source.to(config.device)
                 high_res_source = high_res_source.to(config.device)
-                target_low, target_high = next(target_data)
-                target_low = target_low.to(config.device)
-                target_high = target_high.to(config.device)
+                # target_low, target_high = next(target_data)
+                # target_low = target_low.to(config.device)
+                # target_high = target_high.to(config.device)
 
                 # # Train Discriminators
                 # M.encoder.requires_grad_(False)
@@ -106,9 +106,9 @@ def DomainAdaptation(run_id=31, source_iters=100, target_iters=200, tag="DA", lo
                 FDC.requires_grad_(False)
                 optimizer.zero_grad()
                 features_S = E(low_res_source[:, 0:1], low_res_source[:, -1:])
-                features_T = E(target_low[:, 0:1], target_low[:, -1:])
+                # features_T = E(target_low[:, 0:1], target_low[:, -1:])
                 source_hi = U(features_S)
-                target_hi = U(features_T)
+                # target_hi = U(features_T)
                 # feature_source_label = FDC(features_S)
                 # feature_target_label = FDC(features_T)
                 # features_label_loss = domain_criterion(feature_source_label, torch.full_like(feature_source_label, 0.5)) + domain_criterion(feature_target_label, torch.full_like(feature_target_label, 0.5))
@@ -122,14 +122,14 @@ def DomainAdaptation(run_id=31, source_iters=100, target_iters=200, tag="DA", lo
                 # cycle_source_hi = U(cycle_source_feature)
                 # cycle_vol_loss = criterion(cycle_source_hi, high_res_source)
                 vol_loss = criterion(source_hi, high_res_source)
-                vol_loss_target = criterion(target_hi, target_high)
+                # vol_loss_target = criterion(target_hi, target_high)
                 # source_identity_loss = criterion(cycle_source_feature, features_S)
                 # loss = 0.01*LR_label_loss + 0.01*features_label_loss + 0.01*source_identity_loss + vol_loss + cycle_vol_loss + restore_loss
                 # loss = 0.01*source_identity_loss + vol_loss + cycle_vol_loss + restore_loss
-                loss = vol_loss + vol_loss_target
+                loss = vol_loss
                 # config.track({"S1 LR Label Loss": LR_label_loss, "S1 Feature Label Loss": features_label_loss, "S1 Source Identity Loss": source_identity_loss, "S1 Vol Loss": vol_loss, "S1 Cycle Vol Loss": cycle_vol_loss, "S1 Restore Loss": restore_loss})
                 # config.track({"S1 Source Identity Loss": source_identity_loss, "S1 Vol Loss": vol_loss, "S1 Cycle Vol Loss": cycle_vol_loss, "S1 Restore Loss": restore_loss})
-                config.track({"S1 Vol Loss": vol_loss, "S1 Vol Target Loss": vol_loss_target})
+                config.track({"S1 Vol Loss": vol_loss})
                 loss.backward()
                 optimizer.step()
             config.log_all()
