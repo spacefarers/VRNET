@@ -14,7 +14,7 @@ from pathlib import Path
 label_weight = 1
 
 
-def DomainAdaptation(run_id=20, source_iters=100, target_iters=200, tag="DA", load_model=True, stage="all",
+def DomainAdaptation(run_id=31, source_iters=100, target_iters=200, tag="DA", load_model=True, stage="target",
                      use_restorer=True):
     print(f"Running {tag} {run_id}...")
     config.domain_backprop = False
@@ -136,6 +136,7 @@ def DomainAdaptation(run_id=20, source_iters=100, target_iters=200, tag="DA", lo
                 PSNR_target, _ = infer_and_evaluate(M)
                 PSNR_source, _ = infer_and_evaluate(M, data=eval_source_ds)
                 config.log({"S1 Source PSNR": PSNR_source, "S1 Target PSNR": PSNR_target})
+                model.save_model(M,optimizer, f"{experiment_dir}/source_trained.pth")
     if stage == "target" or stage == "all":
         config.enable_restorer = False
         # Evaluate source training efficiency
@@ -150,8 +151,6 @@ def DomainAdaptation(run_id=20, source_iters=100, target_iters=200, tag="DA", lo
                 config.set_status("Target Training")
                 # tqdm.write("-" * 20)
                 target_data = target_ds.get_augmented_data()
-                vol_loss_total = 0
-                M.train()
                 for batch_idx, (low_res_source, high_res_source) in enumerate(
                         tqdm(target_data, leave=False, desc="Target Iters")):
                     optimizer.zero_grad()
@@ -159,17 +158,17 @@ def DomainAdaptation(run_id=20, source_iters=100, target_iters=200, tag="DA", lo
                     high_res_source = high_res_source.to(config.device)
                     pred_source, _, _ = M(low_res_source[:, 0:1], low_res_source[:, -1:])
                     vol_loss = criterion(pred_source, high_res_source)
-                    vol_loss_total += vol_loss.mean().item()
                     loss = vol_loss
+                    config.track({"S2 Vol Loss": vol_loss})
                     loss.backward()
                     optimizer.step()
-                config.log({"S2 Vol Loss": vol_loss_total})
-                model.save_model(M,optimizer, f"{experiment_dir}/target_trained.pth")
+                config.log_all()
                 if target_iter % target_evaluate_every == target_evaluate_every - 1:
                     # PSNR, PSNR_list = infer_and_evaluate(M, write_to_file=True, inference_dir=inference_dir, experiments_dir=experiment_dir)
                     PSNR_target, _ = infer_and_evaluate(M)
                     # PSNR_source, _ = infer_and_evaluate(M, data=eval_source_ds)
                     config.log({"S2 Target PSNR": PSNR_target})
+                    model.save_model(M,optimizer, f"{experiment_dir}/target_trained.pth")
             M.module.encoder.requires_grad_(True)
 
     config.set_status("Succeeded")
