@@ -169,8 +169,9 @@ def DomainAdaptation(run_id=40, source_iters=100, target_iters=200, tag="DA", lo
                 config.log_all()
                 if target_iter % target_evaluate_every == target_evaluate_every - 1:
                     # PSNR, PSNR_list = infer_and_evaluate(M, write_to_file=True, inference_dir=inference_dir, experiments_dir=experiment_dir)
-                    PSNR_target, _ = infer_and_evaluate(M)
+                    PSNR_target, PSNR_target_list = infer_and_evaluate(M)
                     # PSNR_source, _ = infer_and_evaluate(M, data=eval_source_ds)
+                    save_plot(PSNR_target, PSNR_target_list)
                     config.log({"S2 Target PSNR": PSNR_target})
                     model.save_model(M,optimizer, f"{experiment_dir}/target_trained.pth")
 

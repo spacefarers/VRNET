@@ -55,7 +55,9 @@ def infer_and_evaluate(model, inference_dir=None, write_to_file=False, experimen
     return PSNR, PSNR_list
 
 
-def save_plot(PSNR, PSNR_list, save_path, ensemble_iter=None, run_cycle=None):
+def save_plot(PSNR, PSNR_list, save_path=None, ensemble_iter=None, run_cycle=None):
+    if save_path is None:
+        save_path = "/tmp"
     if ensemble_iter is not None:
         desc = f'#{config.run_id}{f" E.{ensemble_iter}"}: {config.target_dataset} {config.target_var} PSNR'
         name = f'PSNR-E.{ensemble_iter}'
