@@ -171,7 +171,10 @@ def DomainAdaptation(run_id=40, source_iters=100, target_iters=200, tag="DA", lo
                     # PSNR, PSNR_list = infer_and_evaluate(M, write_to_file=True, inference_dir=inference_dir, experiments_dir=experiment_dir)
                     PSNR_target, PSNR_target_list = infer_and_evaluate(M)
                     # PSNR_source, _ = infer_and_evaluate(M, data=eval_source_ds)
-                    save_plot(PSNR_target, PSNR_target_list)
+                    try:
+                        save_plot(PSNR_target, PSNR_target_list)
+                    except:
+                        print("Failed to save plot")
                     config.log({"S2 Target PSNR": PSNR_target})
                     model.save_model(M,optimizer, f"{experiment_dir}/target_trained.pth")
 
