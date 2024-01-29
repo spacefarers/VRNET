@@ -1,3 +1,5 @@
+import os.path
+
 import config
 import time
 import torch
@@ -76,5 +78,10 @@ def save_plot(PSNR, PSNR_list, save_path=None, ensemble_iter=None, run_cycle=Non
     plt.ylabel('PSNR')
     plt.title(desc)
     plt.yticks(list(plt.yticks()[0]) + [PSNR])
+    while os.path.exists(save_path + f'/{name}.png'):
+        if '-' not in name:
+            name = name + '-1'
+        else:
+            name = name.split('-')[0] + '-' + str(int(name.split('-')[1]) + 1)
     plt.savefig(save_path + f'/{name}.png', dpi=300)
     config.log({"PSNR Plot": File(save_path + f'/{name}.png')})
