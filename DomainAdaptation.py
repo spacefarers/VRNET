@@ -129,7 +129,7 @@ def DomainAdaptation(run_id=40, source_iters=100, target_iters=200, tag="DA", lo
                 loss = vol_loss
                 # config.track({"S1 LR Label Loss": LR_label_loss, "S1 Feature Label Loss": features_label_loss, "S1 Source Identity Loss": source_identity_loss, "S1 Vol Loss": vol_loss, "S1 Cycle Vol Loss": cycle_vol_loss, "S1 Restore Loss": restore_loss})
                 # config.track({"S1 Source Identity Loss": source_identity_loss, "S1 Vol Loss": vol_loss, "S1 Cycle Vol Loss": cycle_vol_loss, "S1 Restore Loss": restore_loss})
-                config.track({"S1 Vol Loss": vol_loss, "S1 Restore Loss": restore_loss})
+                config.track({"S1 Vol Loss": vol_loss})
                 loss.backward()
                 optimizer.step()
             config.log_all()
