@@ -37,8 +37,12 @@ def DomainAdaptation(run_id=40, source_iters=100, target_iters=200, tag="DA", lo
         else:
             model_load_path = f'{experiment_dir}/source_trained.pth'
     if model_load_path is not None and os.path.exists(model_load_path):
+        config.log({"Model": "Loaded"})
         print("Loading model from: ", model_load_path)
         M,optimizer = model.load_model(M, torch.load(model_load_path),optimizer)
+    else:
+        M.apply(model.weights_init_kaiming)
+        config.log({"Model": "Not Loaded"})
     E = model.prep_model(M.module.encoder)
     U = model.prep_model(M.module.upscaler)
     R = model.prep_model(M.module.restorer)
@@ -74,30 +78,9 @@ def DomainAdaptation(run_id=40, source_iters=100, target_iters=200, tag="DA", lo
                     tqdm(source_data, leave=False, desc="Source Iters", position=1)):
                 low_res_source = low_res_source.to(config.device)
                 high_res_source = high_res_source.to(config.device)
-                # target_low, target_high = next(target_data)
-                # target_low = target_low.to(config.device)
-                # target_high = target_high.to(config.device)
-
-                # # Train Discriminators
-                # M.encoder.requires_grad_(False)
-                # M.restorer.requires_grad_(False)
-                # M.LR_domain_classifier.requires_grad_(True)
-                # M.feature_domain_classifier.requires_grad_(True)
-                # optimizer.zero_grad()
-                # features_S = M.encoder(low_res_source[:, 0:1], low_res_source[:, -1:])
-                # features_T = M.encoder(target_low[:, 0:1], target_low[:, -1:])
-                # feature_source_label = M.feature_domain_classifier(features_S)
-                # feature_target_label = M.feature_domain_classifier(features_T)
-                # features_label_loss = domain_criterion(feature_source_label, torch.ones_like(feature_source_label)) + domain_criterion(feature_target_label, torch.zeros_like(feature_target_label))
-                # source_restore = M.restorer(features_S)
-                # # target_restore = M.restorer(features_T)
-                # LR_target_label = M.LR_domain_classifier(target_low)
-                # LR_source_label = M.LR_domain_classifier(source_restore)
-                # LR_label_loss = domain_criterion(LR_target_label, torch.ones_like(LR_target_label)) + domain_criterion(LR_source_label, torch.zeros_like(LR_source_label))
-                # loss = LR_label_loss + features_label_loss
-                # config.track({"S1 LRD Label Loss": LR_label_loss, "S1 FeatureD Label Loss": features_label_loss})
-                # loss.backward()
-                # optimizer.step()
+                target_low, target_high = next(target_data)
+                target_low = target_low.to(config.device)
+                target_high = target_high.to(config.device)
 
                 # Train Generators
                 E.requires_grad_(True)
@@ -106,37 +89,20 @@ def DomainAdaptation(run_id=40, source_iters=100, target_iters=200, tag="DA", lo
                 FDC.requires_grad_(False)
                 optimizer.zero_grad()
                 features_S = E(low_res_source[:, 0:1], low_res_source[:, -1:])
-                # features_T = E(target_low[:, 0:1], target_low[:, -1:])
+                features_T = E(target_low[:, 0:1], target_low[:, -1:])
                 source_hi = U(features_S)
-                # target_hi = U(features_T)
-                # feature_source_label = FDC(features_S)
-                # feature_target_label = FDC(features_T)
-                # features_label_loss = domain_criterion(feature_source_label, torch.full_like(feature_source_label, 0.5)) + domain_criterion(feature_target_label, torch.full_like(feature_target_label, 0.5))
-                # source_restore = R(features_S)
-                # target_restore = R(features_T)
-                # LR_target_label = LRDC(target_low)
-                # LR_source_label = LRDC(source_restore)
-                # LR_label_loss = domain_criterion(LR_target_label, torch.full_like(LR_target_label, 0.5)) + domain_criterion(LR_source_label, torch.full_like(LR_source_label, 0.5))
-                # cycle_source_feature = E(source_restore[:, 0:1], source_restore[:, -1:])
-                # cycle_source_hi = U(cycle_source_feature)
-                # cycle_vol_loss = criterion(cycle_source_hi, high_res_source)
                 vol_loss = criterion(source_hi, high_res_source)
-                # restore_loss = criterion(target_low, target_restore)
-                # vol_loss_target = criterion(target_hi, target_high)
-                # source_identity_loss = criterion(cycle_source_feature, features_S)
-                # loss = 0.01*LR_label_loss + 0.01*features_label_loss + 0.01*source_identity_loss + vol_loss + cycle_vol_loss + restore_loss
-                # loss = 0.01*source_identity_loss + vol_loss + cycle_vol_loss + restore_loss
-                loss = vol_loss
-                # config.track({"S1 LR Label Loss": LR_label_loss, "S1 Feature Label Loss": features_label_loss, "S1 Source Identity Loss": source_identity_loss, "S1 Vol Loss": vol_loss, "S1 Cycle Vol Loss": cycle_vol_loss, "S1 Restore Loss": restore_loss})
-                # config.track({"S1 Source Identity Loss": source_identity_loss, "S1 Vol Loss": vol_loss, "S1 Cycle Vol Loss": cycle_vol_loss, "S1 Restore Loss": restore_loss})
-                config.track({"S1 Vol Loss": vol_loss})
+                target_restore = R(features_T)
+                restore_loss = criterion(target_restore, target_high)
+                loss = vol_loss + restore_loss
+                config.track({"S1 Vol Loss": vol_loss, "S1 Restore Loss": restore_loss})
                 loss.backward()
                 optimizer.step()
             config.log_all()
             if source_iter % source_evaluate_every == source_evaluate_every - 1:
                 PSNR_target, _ = infer_and_evaluate(M)
-                PSNR_source, _ = infer_and_evaluate(M, data=eval_source_ds)
-                config.log({"S1 Source PSNR": PSNR_source, "S1 Target PSNR": PSNR_target})
+                # PSNR_source, _ = infer_and_evaluate(M, data=eval_source_ds)
+                config.log({"S1 Target PSNR": PSNR_target})
                 model.save_model(M,optimizer, f"{experiment_dir}/source_trained.pth")
     if stage == "target" or stage == "all":
         config.enable_restorer = False
