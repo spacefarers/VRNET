@@ -50,7 +50,7 @@ def DomainAdaptation(run_id=40, source_iters=100, target_iters=200, tag="DA", lo
     eval_source_ds = source_ds
     target_ds = Dataset(config.target_dataset, config.target_var, "train")
     # source_aid_ds = Dataset("hurricane", "RAIN", "all")
-    # source_aid_ds = target_ds
+    source_aid_ds = target_ds
     source_evaluate_every = 20
     target_evaluate_every = 20
 
