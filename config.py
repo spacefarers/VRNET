@@ -60,7 +60,7 @@ crop_times = 4
 # low_res_size for half-cylinder: [160, 60, 20]
 # low_res_size for hurricane: [125,125,25]
 # low_res_size for vorts: [32,32,32]
-crop_size = [16,16,16]  # must be multiples of 8 and smaller than low res size
+crop_size = [4,4,4]  # must be multiples of 8 and smaller than low res size
 scale = 4
 load_ensemble_model = False
 ensemble_path = experiments_dir + f"ensemble/{target_dataset}/ensemble.pth"
