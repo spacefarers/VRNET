@@ -497,7 +497,7 @@ class MetaClassifier(nn.Module):
         x = torch.cat(results, dim=0)
 
 
-def load_model(model, new_model, optimizer):
+def load_model(model, new_model, optimizer=None):
     if 'optimizer' in new_model:
         optimizer_load = new_model['optimizer']
         new_model = new_model['model']

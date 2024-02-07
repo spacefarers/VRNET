@@ -32,6 +32,7 @@ if 'PowerPC' in machine:
     experiments_dir = '/mnt/d/experiments/'
     root_data_dir = '/mnt/d/data/'
     processed_dir = '/mnt/d/data/processed_data/'
+    enable_logging = True
 elif 'crc' in machine:
     machine = 'CRC'
     root_data_dir = '/afs/crc.nd.edu/user/m/myang9/data/'
